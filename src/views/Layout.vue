@@ -1,17 +1,29 @@
 <template>
   <div class="layout">
-    <!-- 左侧菜单 -->
-    <div class="aside">
-      <h2>快爬</h2>
-      <router-link to="/home">首页</router-link>
-      <router-link to="/user">用户管理</router-link>
-      <button @click="logout">退出</button>
+    <!-- 顶部导航栏 -->
+    <div class="header">
+      <h1>任务调度中心</h1>
+      <div class="user-info">
+        <span>欢迎：NT0777</span>
+      </div>
     </div>
 
-    <!-- 右侧内容区域 -->
-    <div class="main">
-      <!-- 子页面在这里显示！！！ -->
-      <router-view />
+    <div class="content-wrapper">
+      <!-- 左侧菜单 -->
+      <div class="aside">
+        <router-link to="/overview">运行概览</router-link>
+        <router-link to="/task">任务管理</router-link>
+        <router-link to="/execution">执行管理</router-link>
+        <router-link to="/log">调度日志</router-link>
+        <router-link to="/user">用户管理</router-link>
+        <button @click="logout">退出</button>
+      </div>
+
+      <!-- 右侧内容区域 -->
+      <div class="main">
+        <!-- 子页面在这里显示！！！ -->
+        <router-view />
+      </div>
     </div>
   </div>
 </template>
@@ -53,16 +65,55 @@ const logout = async() => {
 <style scoped>
 .layout {
   display: flex;
+  flex-direction: column;
   height: 100vh;
 }
-.aside {
-  width: 200px;
-  background: #222;
+.header {
+  background: #1890ff;
   color: white;
-  padding: 20px;
+  padding: 0 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 18px;
+  font-weight: bold;
+}
+.content-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+.aside {
+  width: 180px;
+  background: #262626;
+  color: white;
+  padding: 20px 0;
+}
+.aside a {
+  display: block;
+  padding: 12px 20px;
+  color: white;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+.aside a:hover {
+  background: #1890ff;
+}
+.aside button {
+  margin: 20px;
+  width: calc(100% - 40px);
+  padding: 10px;
+  background: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
 }
 .main {
   flex: 1;
   padding: 20px;
+  background: #f0f2f5;
+  overflow-y: auto;
 }
 </style>

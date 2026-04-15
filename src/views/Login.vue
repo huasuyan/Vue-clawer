@@ -176,7 +176,7 @@ const handleAccountLogin = async () => {
       if (res.data.token) {
         localStorage.setItem('token', res.data.token)
         // 这里可以跳转到首页
-        router.push('/home')
+        router.push('/overview')
       }
      
     } else {

@@ -18,12 +18,24 @@ const routes = [
   {
     path: '/',
     component: () => import('@/views/Layout.vue'), // 主界面壳子
-    redirect: '/home', // 默认显示首页
+    redirect: '/overview', // 默认显示运行概览
     children: [
       //子路由 → 内容显示在 <router-view>
       {
-        path: 'home',
-        component: () => import('@/views/Home.vue')
+        path: 'overview',
+        component: () => import('@/views/Overview.vue')
+      },
+      {
+        path: 'task',
+        component: () => import('@/views/Task.vue')
+      },
+      {
+        path: 'execution',
+        component: () => import('@/views/Execution.vue')
+      },
+      {
+        path: 'log',
+        component: () => import('@/views/Log.vue')
       },
       {
         path: 'user',
@@ -43,9 +55,9 @@ router.beforeEach((to, from, next) => {
 
   // 要去登录页或注册页
   if (to.path === '/login' || to.path === '/register') {
-    // 如果有 token，跳转到首页
+    // 如果有 token，跳转到运行概览
     if (token) {
-      return next('/home')
+      return next('/overview')
     }
     // 没有 token，放行
     return next()
