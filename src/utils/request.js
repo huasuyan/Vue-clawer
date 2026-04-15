@@ -1,4 +1,6 @@
 import axios from 'axios'
+import router from '@/router'
+import { ElMessage } from 'element-plus'
 
 const service = axios.create({
   baseURL: '',
@@ -19,7 +21,7 @@ service.interceptors.request.use(
   error => {
     return Promise.reject(error)
   }
-  
+
 )
 
 // 响应拦截器
@@ -28,11 +30,17 @@ service.interceptors.response.use(
     return response.data
   },
   error => {
-    if (err.response.code === 401) {
-      // token 无效/过期
+    // 处理 401 未授权错误
+    if (error.response && error.response.status === 401) {
+      ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
+      localStorage.removeItem('username')
       router.push('/login')
+      // 返回一个 resolved promise，避免触发业务代码的 catch
+      return Promise.resolve({ code: 0, msg: '登录已过期' })
     }
+
+    // 其他错误直接 reject，让业务代码处理
     return Promise.reject(error)
   }
 )

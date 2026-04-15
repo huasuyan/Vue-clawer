@@ -52,3 +52,12 @@ export const delTokenAPI = (data) => {
     data
   })
 }
+
+// 更新用户信息
+export const updateUserAPI = (data) => {
+  return request({
+    url: '/api/v1/user/update',
+    method: 'post',
+    data
+  })
+}

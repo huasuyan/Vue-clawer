@@ -18,28 +18,16 @@ const routes = [
   {
     path: '/',
     component: () => import('@/views/Layout.vue'), // 主界面壳子
-    redirect: '/overview', // 默认显示运行概览
+    redirect: '/home', // 默认显示运行概览
     children: [
       //子路由 → 内容显示在 <router-view>
       {
-        path: 'overview',
-        component: () => import('@/views/Overview.vue')
+        path: 'home',
+        component: () => import('@/views/Home.vue')
       },
       {
         path: 'task',
         component: () => import('@/views/Task.vue')
-      },
-      {
-        path: 'execution',
-        component: () => import('@/views/Execution.vue')
-      },
-      {
-        path: 'log',
-        component: () => import('@/views/Log.vue')
-      },
-      {
-        path: 'user',
-        component: () => import('@/views/User.vue')
       }
     ]
   }

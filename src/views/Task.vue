@@ -1,109 +1,138 @@
 <template>
   <div class="task-container">
-    <!-- 顶部导航 -->
-    <div class="task-nav">
-      <el-tabs v-model="activeTab" @tab-click="handleTabClick">
-        <el-tab-pane label="执行" name="execution"></el-tab-pane>
-        <el-tab-pane label="测试测试" name="test"></el-tab-pane>
-      </el-tabs>
-    </div>
-
-    <!-- 搜索区域 -->
-    <div class="search-area">
-      <el-select v-model="form.region" placeholder="全部" style="width: 120px; margin-right: 10px;">
-        <el-option label="全部" value="all"></el-option>
-      </el-select>
-      <el-input v-model="form.taskName" placeholder="请输入任务描述" style="width: 200px; margin-right: 10px;"></el-input>
-      <el-input v-model="form.jobHandler" placeholder="请输入JobHandler" style="width: 200px; margin-right: 10px;"></el-input>
-      <el-input v-model="form.owner" placeholder="请输入负责人" style="width: 150px; margin-right: 10px;"></el-input>
-      <el-button type="primary" @click="search">搜索</el-button>
-      <el-button @click="reset">重置</el-button>
-    </div>
-
-    <!-- 操作按钮 -->
-    <div class="action-buttons">
-      <el-button type="primary" size="small">+ 新增</el-button>
-      <el-button size="small">编辑</el-button>
-      <el-button size="small">CURL测试</el-button>
-      <el-button size="small">删除任务</el-button>
-      <el-button size="small">启动</el-button>
-      <el-button size="small">停止</el-button>
-      <el-button size="small">执行一次</el-button>
-      <el-button size="small">查看日志</el-button>
-      <el-button size="small">立即终止</el-button>
-      <el-button size="small">下次执行时间</el-button>
+    <!-- 页面标题和新增按钮 -->
+    <div class="page-header">
+      <h2 class="page-title">爬虫管理</h2>
+      <el-button type="primary" @click="addTask">+ 新增</el-button>
     </div>
 
     <!-- 任务列表 -->
-    <el-table :data="taskList" style="width: 100%">
-      <el-table-column type="selection" width="55"></el-table-column>
-      <el-table-column prop="id" label="任务ID" width="80"></el-table-column>
-      <el-table-column prop="name" label="任务描述" min-width="150"></el-table-column>
-      <el-table-column prop="status" label="状态" width="100">
+    <el-table :data="taskList" style="width: 100%" border>
+      <el-table-column prop="name" label="爬虫名称" min-width="120"></el-table-column>
+      <el-table-column prop="cron" label="Cron 表达式" width="150">
         <template #default="scope">
-          <el-tag v-if="scope.row.status === 'running'" type="success">运行中</el-tag>
-          <el-tag v-else type="info">停止</el-tag>
+          <div>{{ scope.row.cron }}</div>
+          <div class="cron-desc">{{ scope.row.cronDesc }}</div>
+          <div class="next-time">下一时刻: {{ scope.row.nextTime }}</div>
         </template>
       </el-table-column>
-      <el-table-column prop="cron" label="执行表达式" width="150"></el-table-column>
-      <el-table-column prop="jobHandler" label="JobHandler" min-width="150"></el-table-column>
-      <el-table-column prop="mode" label="调度模式" width="100"></el-table-column>
-      <el-table-column prop="owner" label="负责人" width="100"></el-table-column>
-      <el-table-column label="操作" width="100">
+      <el-table-column prop="execMethod" label="执行方式" width="100"></el-table-column>
+      <el-table-column prop="configMethod" label="配置方式" width="100"></el-table-column>
+      <el-table-column prop="lastExecTime" label="上次执行时间" width="160"></el-table-column>
+      <el-table-column prop="nextExecTime" label="下次执行时间" width="160"></el-table-column>
+      <el-table-column prop="description" label="爬虫描述" min-width="100"></el-table-column>
+      <el-table-column prop="updateTime" label="更新时间" width="160"></el-table-column>
+      <el-table-column label="启用状态" width="100" align="center">
         <template #default="scope">
-          <el-button size="small" @click="editTask(scope.row)">编辑</el-button>
+          <el-switch v-model="scope.row.enabled" @change="toggleStatus(scope.row)"></el-switch>
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="200" fixed="right">
+        <template #default="scope">
+          <el-button link type="primary" size="small" @click="configFlow(scope.row)">配置流程</el-button>
+          <el-button link type="primary" size="small" @click="editTask(scope.row)">编辑</el-button>
+          <el-button link type="danger" size="small" @click="deleteTask(scope.row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
 
-    <!-- 空状态 -->
-    <div v-if="taskList.length === 0" class="empty-state">
-      <p>没有找到匹配的记录</p>
+    <!-- 分页 -->
+    <div class="pagination-container">
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="total"
+        layout="prev, pager, next, sizes, jumper"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 标签页
-const activeTab = ref('execution')
-
-// 搜索表单
-const form = reactive({
-  region: 'all',
-  taskName: '',
-  jobHandler: '',
-  owner: ''
-})
+// 分页
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
 
 // 任务列表
-const taskList = ref([])
+const taskList = ref([
+  {
+    id: 1,
+    name: '任务调度',
+    cron: '0 0 */5 * *',
+    cronDesc: '描述: 在上午 12:00, 每隔 6 天',
+    nextTime: '2023年10月1日星期三 00:00',
+    execMethod: '定时任务',
+    configMethod: '流程组件',
+    lastExecTime: '2026-02-25 14:54:35',
+    nextExecTime: '2026-02-25 14:54:35',
+    description: '描述 XXXX',
+    updateTime: '2026-02-25 14:54:35',
+    enabled: true
+  },
+  {
+    id: 2,
+    name: '服务监控',
+    cron: '0 2 * * *',
+    cronDesc: '描述: 每天凌晨2点执行',
+    nextTime: '2023年10月2日星期四 02:00',
+    execMethod: '手动执行',
+    configMethod: '脚本',
+    lastExecTime: '2026-02-25 14:54:35',
+    nextExecTime: '2026-02-25 14:54:35',
+    description: '描述 XXXX',
+    updateTime: '2026-02-25 14:54:35',
+    enabled: false
+  }
+])
 
-// 处理标签页点击
-const handleTabClick = (tab) => {
-  console.log('Tab clicked:', tab.props.name)
+// 新增任务
+const addTask = () => {
+  ElMessage.info('新增任务功能开发中')
 }
 
-// 搜索
-const search = () => {
-  console.log('Search:', form)
-  // 模拟搜索结果
-  taskList.value = []
-}
-
-// 重置
-const reset = () => {
-  form.region = 'all'
-  form.taskName = ''
-  form.jobHandler = ''
-  form.owner = ''
-  taskList.value = []
+// 配置流程
+const configFlow = (row) => {
+  ElMessage.info(`配置流程: ${row.name}`)
 }
 
 // 编辑任务
 const editTask = (row) => {
-  console.log('Edit task:', row)
+  ElMessage.info(`编辑任务: ${row.name}`)
+}
+
+// 删除任务
+const deleteTask = (row) => {
+  ElMessageBox.confirm(`确定删除任务"${row.name}"吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => {
+    ElMessage.success('删除成功')
+  }).catch(() => {})
+}
+
+// 切换启用状态
+const toggleStatus = (row) => {
+  const status = row.enabled ? '启用' : '禁用'
+  ElMessage.success(`已${status}任务: ${row.name}`)
+}
+
+// 分页处理
+const handleSizeChange = (val) => {
+  pageSize.value = val
+  ElMessage.info(`每页 ${val} 条`)
+}
+
+const handleCurrentChange = (val) => {
+  currentPage.value = val
+  ElMessage.info(`当前页: ${val}`)
 }
 </script>
 
@@ -112,31 +141,37 @@ const editTask = (row) => {
   background: white;
   padding: 20px;
   border-radius: 4px;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.task-nav {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
-.search-area {
-  margin-bottom: 20px;
-  padding: 15px;
-  background: #f5f7fa;
-  border-radius: 4px;
+.page-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: #333;
 }
 
-.action-buttons {
-  margin-bottom: 20px;
+.cron-desc {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
 }
 
-.action-buttons .el-button {
-  margin-right: 10px;
+.next-time {
+  font-size: 12px;
+  color: #666;
+  margin-top: 2px;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 40px 0;
-  color: #909399;
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
 }
 </style>

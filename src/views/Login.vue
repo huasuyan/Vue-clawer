@@ -175,8 +175,9 @@ const handleAccountLogin = async () => {
       // 保存 token 到本地存储
       if (res.data.token) {
         localStorage.setItem('token', res.data.token)
+        localStorage.setItem('username',accountForm.username)
         // 这里可以跳转到首页
-        router.push('/overview')
+        router.push('/home')
       }
      
     } else {
