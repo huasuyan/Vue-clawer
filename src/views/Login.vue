@@ -175,7 +175,7 @@ const handleAccountLogin = async () => {
       // 保存 token 到本地存储
       if (res.data.token) {
         localStorage.setItem('token', res.data.token)
-        localStorage.setItem('username',accountForm.username)
+        localStorage.setItem('userName',accountForm.username)
         // 这里可以跳转到首页
         router.push('/home')
       }
@@ -262,6 +262,7 @@ const handleSmsLogin = async () => {
       // 4. 保存 token（必须！）
       if (res.data.token) {
         localStorage.setItem('token', res.data.token)
+        localStorage.setItem('userName', res.data.userName)
       }
 
       // 5. 跳转到主页

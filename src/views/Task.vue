@@ -1,5 +1,53 @@
 <template>
   <div class="task-container">
+    <!-- 查询栏 -->
+    <div class="search-bar">
+      <div class="search-row">
+        <div class="search-item">
+          <label>爬虫名称：</label>
+          <el-input v-model="queryForm.crawlerName" placeholder="请输入" clearable style="width: 200px"></el-input>
+        </div>
+        <div class="search-item">
+          <label>执行方式：</label>
+          <el-select v-model="queryForm.scheduleType" placeholder="请选择" clearable style="width: 200px">
+            <el-option label="定时任务" value="CRON"></el-option>
+            <el-option label="手动执行" value="NONE"></el-option>
+          </el-select>
+        </div>
+        <div class="search-item">
+          <label>配置方式：</label>
+          <el-select v-model="queryForm.configMethod" placeholder="请选择" clearable style="width: 200px">
+            <el-option label="流程组件" :value="1"></el-option>
+            <el-option label="脚本" :value="0"></el-option>
+          </el-select>
+        </div>
+      </div>
+      <div class="search-row">
+        <div class="search-item">
+          <label>启用状态：</label>
+          <el-select v-model="queryForm.triggerStatus" placeholder="请选择" clearable style="width: 200px">
+            <el-option label="启用" :value="1"></el-option>
+            <el-option label="禁用" :value="0"></el-option>
+          </el-select>
+        </div>
+        <div class="search-item">
+          <label>执行日期：</label>
+          <el-date-picker
+            v-model="queryForm.dateRange"
+            type="daterange"
+            range-separator="~"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            style="width: 300px"
+          />
+        </div>
+        <div class="search-buttons">
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">查看</el-button>
+        </div>
+      </div>
+    </div>
+
     <!-- 页面标题和新增按钮 -->
     <div class="page-header">
       <h2 class="page-title">爬虫管理</h2>
@@ -39,8 +87,8 @@
     <!-- 分页 -->
     <div class="pagination-container">
       <el-pagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
+        v-model:current-page="queryForm.pageNum"
+        v-model:page-size="queryForm.pageSize"
         :page-sizes="[10, 20, 50, 100]"
         :total="total"
         layout="prev, pager, next, sizes, jumper"
@@ -52,45 +100,153 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getCrawlerListAPI } from '@/api'
 
-// 分页
-const currentPage = ref(1)
-const pageSize = ref(10)
+// 查询表单
+const queryForm = ref({
+  pageNum: 1,
+  pageSize: 10,
+  crawlerName: '',
+  scheduleType: '',
+  configMethod: '',
+  triggerStatus: '',
+  dateRange: []
+})
+
 const total = ref(0)
 
 // 任务列表
-const taskList = ref([
-  {
-    id: 1,
-    name: '任务调度',
-    cron: '0 0 */5 * *',
-    cronDesc: '描述: 在上午 12:00, 每隔 6 天',
-    nextTime: '2023年10月1日星期三 00:00',
-    execMethod: '定时任务',
-    configMethod: '流程组件',
-    lastExecTime: '2026-02-25 14:54:35',
-    nextExecTime: '2026-02-25 14:54:35',
-    description: '描述 XXXX',
-    updateTime: '2026-02-25 14:54:35',
-    enabled: true
-  },
-  {
-    id: 2,
-    name: '服务监控',
-    cron: '0 2 * * *',
-    cronDesc: '描述: 每天凌晨2点执行',
-    nextTime: '2023年10月2日星期四 02:00',
-    execMethod: '手动执行',
-    configMethod: '脚本',
-    lastExecTime: '2026-02-25 14:54:35',
-    nextExecTime: '2026-02-25 14:54:35',
-    description: '描述 XXXX',
-    updateTime: '2026-02-25 14:54:35',
-    enabled: false
+const taskList = ref([])
+
+// 解析 cron 表达式
+const parseCron = (cron) => {
+  if (!cron) return ''
+
+  const parts = cron.trim().split(/\s+/)
+  if (parts.length < 5) return ''
+
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts
+
+  let desc = '描述: '
+
+  // 分钟
+  if (minute === '*') {
+    desc += '每分钟'
+  } else if (minute.includes('/')) {
+    const interval = minute.split('/')[1]
+    desc += `每${interval}分钟`
+  } else if (minute.includes(',')) {
+    desc += `在第${minute.replace(/,/g, '、')}分钟`
+  } else {
+    desc += `在第${minute}分钟`
   }
-])
+
+  // 小时
+  if (hour === '*') {
+    desc += ', 每小时'
+  } else if (hour.includes('/')) {
+    const interval = hour.split('/')[1]
+    desc += `, 每${interval}小时`
+  } else if (hour.includes(',')) {
+    desc += `, 在${hour.replace(/,/g, '、')}点`
+  } else {
+    desc += `, 在${hour}点`
+  }
+
+  // 日期
+  if (dayOfMonth === '*') {
+    // 不添加描述
+  } else if (dayOfMonth.includes('/')) {
+    const interval = dayOfMonth.split('/')[1]
+    desc += `, 每隔${interval}天`
+  } else if (dayOfMonth.includes(',')) {
+    desc += `, 在${dayOfMonth.replace(/,/g, '、')}号`
+  } else {
+    desc += `, 在${dayOfMonth}号`
+  }
+
+  // 月份
+  if (month !== '*') {
+    if (month.includes(',')) {
+      desc += `, 在${month.replace(/,/g, '、')}月`
+    } else {
+      desc += `, 在${month}月`
+    }
+  }
+
+  // 星期
+  if (dayOfWeek !== '*' && dayOfWeek !== '?') {
+    const weekMap = { '0': '日', '1': '一', '2': '二', '3': '三', '4': '四', '5': '五', '6': '六', '7': '日' }
+    if (dayOfWeek.includes(',')) {
+      const days = dayOfWeek.split(',').map(d => '周' + (weekMap[d] || d)).join('、')
+      desc += `, 在${days}`
+    } else {
+      desc += `, 在周${weekMap[dayOfWeek] || dayOfWeek}`
+    }
+  }
+
+  return desc
+}
+
+// 加载数据
+const loadData = async () => {
+  try {
+    const params = {
+      pageNum: queryForm.value.pageNum,
+      pageSize: queryForm.value.pageSize,
+      crawlerName: queryForm.value.crawlerName || undefined,
+      scheduleType: queryForm.value.scheduleType || undefined,
+      configMethod: queryForm.value.configMethod || undefined,
+      triggerStatus: queryForm.value.triggerStatus !== '' ? queryForm.value.triggerStatus : undefined
+    }
+
+    const res = await getCrawlerListAPI(params)
+
+    if (res.code === 1) {
+      taskList.value = res.data.map(item => ({
+        id: item.crawlerId,
+        name: item.crawlerName,
+        cron: item.schedule_conf,
+        cronDesc: parseCron(item.schedule_conf),
+        nextTime: item.nextTime || '',
+        execMethod: item.scheduleType,
+        configMethod: item.configMethod === 0 ? '脚本' : '流程组件',
+        lastExecTime: item.triggerLastTime,
+        nextExecTime: item.triggerNextTime,
+        description: item.jobDesc,
+        updateTime: item.updateTime,
+        enabled: item.triggerStatus === 1
+      }))
+      total.value = res.total || res.data.length
+    } else {
+      ElMessage.error(res.msg || '查询失败')
+    }
+  } catch (err) {
+    console.error('查询失败:', err)
+  }
+}
+
+// 查询
+const handleSearch = () => {
+  queryForm.value.pageNum = 1
+  loadData()
+}
+
+// 重置/查看
+const handleReset = () => {
+  queryForm.value = {
+    pageNum: 1,
+    pageSize: 10,
+    crawlerName: '',
+    scheduleType: '',
+    configMethod: '',
+    triggerStatus: '',
+    dateRange: []
+  }
+  loadData()
+}
 
 // 新增任务
 const addTask = () => {
@@ -126,14 +282,19 @@ const toggleStatus = (row) => {
 
 // 分页处理
 const handleSizeChange = (val) => {
-  pageSize.value = val
-  ElMessage.info(`每页 ${val} 条`)
+  queryForm.value.pageSize = val
+  loadData()
 }
 
 const handleCurrentChange = (val) => {
-  currentPage.value = val
-  ElMessage.info(`当前页: ${val}`)
+  queryForm.value.pageNum = val
+  loadData()
 }
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadData()
+})
 </script>
 
 <style scoped>
@@ -141,6 +302,42 @@ const handleCurrentChange = (val) => {
   background: white;
   padding: 20px;
   border-radius: 4px;
+}
+
+.search-bar {
+  background: #f5f7fa;
+  padding: 20px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.search-row:last-child {
+  margin-bottom: 0;
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-item label {
+  white-space: nowrap;
+  font-size: 14px;
+  color: #606266;
+}
+
+.search-buttons {
+  display: flex;
+  gap: 10px;
+  margin-left: auto;
 }
 
 .page-header {

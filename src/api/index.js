@@ -61,3 +61,12 @@ export const updateUserAPI = (data) => {
     data
   })
 }
+
+// 查询爬虫列表
+export const getCrawlerListAPI = (data) => {
+  return request({
+    url: '/api/v1/crawlers/pageList',
+    method: 'post',
+    data
+  })
+}

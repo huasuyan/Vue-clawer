@@ -75,7 +75,7 @@ import md5 from 'js-md5'
 
 const router = useRouter()
 const showDropdown = ref(false)
-const userName = ref(localStorage.getItem('username') || '用户')
+const userName = ref(localStorage.getItem('userName') || '用户')
 
 // 修改密码对话框
 const showPasswordDialog = ref(false)
@@ -126,7 +126,7 @@ const submitPasswordChange = async () => {
 
       if(res.code === 1){
         //删除本地用户信息
-        localStorage.removeItem('username')
+        localStorage.removeItem('userName')
         localStorage.removeItem('token')
         // 跳转登录页
         router.push('/login')
@@ -154,6 +154,7 @@ const logout = async() => {
     if(res.code === 1){
       // redis删除成功删除本地token
       localStorage.removeItem('token')
+      localStorage.removeItem('userName')
       // 跳转登录页
       router.push('/login')
       ElMessage.success("已退出登录！")
