@@ -32,7 +32,6 @@ service.interceptors.response.use(
   error => {
     // 处理 401 未授权错误
     if (error.response && error.response.status === 401) {
-      ElMessage.error('登录已过期，请重新登录')
       localStorage.removeItem('token')
       localStorage.removeItem('userName')
       router.push('/login')

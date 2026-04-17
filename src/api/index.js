@@ -70,3 +70,53 @@ export const getCrawlerListAPI = (data) => {
     data
   })
 }
+
+// 创建爬虫
+export const createCrawlerAPI = (data) => {
+  return request({
+    url: '/api/v1/crawlers/script',
+    method: 'post',
+    data
+  })
+}
+
+// 查询单个爬虫信息
+export const getCrawlerByIdAPI = (jobId) => {
+  return request({
+    url: `/api/v1/crawlers/searchByJobId?jobId=${jobId}`,
+    method: 'post'
+  })
+}
+
+// 更新爬虫信息
+export const updateCrawlerAPI = (data) => {
+  return request({
+    url: '/api/v1/crawlers/update',
+    method: 'post',
+    data
+  })
+}
+
+// 删除爬虫
+export const deleteCrawlerAPI = (jobId) => {
+  return request({
+    url: `/api/v1/crawlers/delete?jobId=${jobId}`,
+    method: 'post'
+  })
+}
+
+// 手动执行爬虫
+export const executeCrawlerAPI = (jobId) => {
+  return request({
+    url: `/api/v1/crawlers/execute?jobId=${jobId}`,
+    method: 'post'
+  })
+}
+
+// 启用/停止爬虫
+export const activateCrawlerAPI = (jobId) => {
+  return request({
+    url: `/api/v1/crawlers/activate?jobId=${jobId}`,
+    method: 'post'
+  })
+}
