@@ -127,6 +127,7 @@ const submitPasswordChange = async () => {
       if(res.code === 1){
         //删除本地用户信息
         localStorage.removeItem('userName')
+        localStorage.removeItem('userId')
         localStorage.removeItem('token')
         // 跳转登录页
         router.push('/login')
@@ -155,6 +156,7 @@ const logout = async() => {
       // redis删除成功删除本地token
       localStorage.removeItem('token')
       localStorage.removeItem('userName')
+      localStorage.removeItem('userId')
       // 跳转登录页
       router.push('/login')
       ElMessage.success("已退出登录！")
