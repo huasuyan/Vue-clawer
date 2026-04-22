@@ -1,57 +1,93 @@
 <template>
   <div class="register-container">
-    <div class="register-box">
-      <h2 class="register-title">用户注册</h2>
-
-      <div class="form-container">
-        <el-input
-          v-model="registerForm.username"
-          placeholder="请输入账号（6-12个字符）"
-          clearable
-          class="form-input"
-        />
-        <el-input
-          v-model="registerForm.password"
-          type="password"
-          placeholder="请输入密码（6-18位，至少包含两种字符类型）"
-          show-password
-          clearable
-          class="form-input"
-        />
-        <el-input
-          v-model="registerForm.confirmPassword"
-          type="password"
-          placeholder="请确认密码"
-          show-password
-          clearable
-          class="form-input"
-        />
-        <el-input
-          v-model="registerForm.phone"
-          placeholder="请输入手机号"
-          clearable
-          class="form-input"
-        />
-        <div class="captcha-row">
-          <el-input
-            v-model="registerForm.code"
-            placeholder="图形验证码"
-            clearable
-            class="captcha-input"
-          />
-          <img
-            :src="`data:image/png;base64,${captchaImg}`"
-            @click="getCaptchaCode"
-            class="captcha-img"
-            alt="图形验证码"
-          />
+    <!-- 左侧品牌展示区 -->
+    <div class="brand-section">
+      <div class="brand-content">
+        <div class="brand-header">
+          <img src="@/assets/logo.png" alt="Logo" class="brand-logo" />
+          <h1 class="brand-title">淇安荣讯</h1>
         </div>
+        <p class="brand-subtitle">全网舆情监测 · 实时数据分析</p>
+        <img src="@/assets/u70.png" alt="Decoration" class="brand-decoration" />
+      </div>
+    </div>
 
-        <el-button type="primary" class="register-btn" @click="handleRegister">
-          注册
-        </el-button>
-        <div class="login-link">
-          已有账号？<span @click="goToLogin">立即登录</span>
+    <!-- 右侧注册表单区 -->
+    <div class="form-section">
+      <div class="register-card">
+        <h2 class="form-title">用户注册</h2>
+
+        <div class="form-content">
+          <el-input
+            v-model="registerForm.username"
+            placeholder="请输入用户名（6-12个字符）"
+            size="large"
+            clearable
+          >
+            <template #prefix>
+              <el-icon><User /></el-icon>
+            </template>
+          </el-input>
+
+          <el-input
+            v-model="registerForm.password"
+            type="password"
+            placeholder="请输入密码（6-18位，至少包含两种字符类型）"
+            size="large"
+            clearable
+            show-password
+          >
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
+
+          <el-input
+            v-model="registerForm.confirmPassword"
+            type="password"
+            placeholder="请确认密码"
+            size="large"
+            clearable
+            show-password
+          >
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
+
+          <el-input
+            v-model="registerForm.phone"
+            placeholder="请输入手机号"
+            size="large"
+            clearable
+          >
+            <template #prefix>
+              <el-icon><Iphone /></el-icon>
+            </template>
+          </el-input>
+
+          <div class="captcha-row">
+            <el-input
+              v-model="registerForm.code"
+              placeholder="请输入验证码"
+              size="large"
+              clearable
+            />
+            <img
+              :src="`data:image/png;base64,${captchaImg}`"
+              @click="getCaptchaCode"
+              class="captcha-img"
+              alt="验证码"
+            />
+          </div>
+
+          <el-button type="primary" size="large" class="register-button" @click="handleRegister">
+            注册
+          </el-button>
+
+          <div class="login-tip">
+            已有账号？<span class="login-link" @click="goToLogin">立即登录</span>
+          </div>
         </div>
       </div>
     </div>
@@ -63,12 +99,11 @@ import { reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getCaptchaCodeAPI, registerAPI } from '@/api'
+import { User, Lock, Iphone } from '@element-plus/icons-vue'
 import md5 from 'js-md5'
-
 
 const router = useRouter()
 
-// 注册表单
 const registerForm = reactive({
   username: '',
   password: '',
@@ -78,36 +113,31 @@ const registerForm = reactive({
   uuid: ''
 })
 
-// 图形验证码
 const captchaImg = ref('')
-const captchaUuid = ref('')
 
-// 获取图形验证码
 const getCaptchaCode = async () => {
   try {
     const res = await getCaptchaCodeAPI()
     if (res.code === 1) {
       captchaImg.value = res.data.img
-      captchaUuid.value = res.data.uuid
       registerForm.uuid = res.data.uuid
+      registerForm.code = ''
     } else {
       ElMessage.error(res.msg || '获取验证码失败')
     }
   } catch (err) {
     ElMessage.error('网络异常，请重试')
+    console.error(err)
   }
 }
 
-// 注册
 const handleRegister = async () => {
-  // 表单验证
   if (!registerForm.username) {
-    ElMessage.warning('请输入账号')
+    ElMessage.warning('请输入用户名')
     return
   }
-  // 验证账号长度
   if (registerForm.username.length < 6 || registerForm.username.length > 12) {
-    ElMessage.warning('账号长度必须为6-12个字符')
+    ElMessage.warning('用户名长度必须为6-12个字符')
     return
   }
 
@@ -115,12 +145,10 @@ const handleRegister = async () => {
     ElMessage.warning('请输入密码')
     return
   }
-  // 验证密码长度
   if (registerForm.password.length < 6 || registerForm.password.length > 18) {
     ElMessage.warning('密码长度必须为6-18位')
     return
   }
-  // 验证密码复杂度：至少包含数字、大小写字母、特殊字符中的两种
   const hasNumber = /\d/.test(registerForm.password)
   const hasLetter = /[a-zA-Z]/.test(registerForm.password)
   const hasSpecial = /[^a-zA-Z0-9]/.test(registerForm.password)
@@ -148,12 +176,11 @@ const handleRegister = async () => {
     return
   }
   if (!registerForm.code) {
-    ElMessage.warning('请输入图形验证码')
+    ElMessage.warning('请输入验证码')
     return
   }
 
   try {
-    // 调用注册接口
     const res = await registerAPI({
       username: registerForm.username,
       password: md5(registerForm.password),
@@ -164,24 +191,20 @@ const handleRegister = async () => {
 
     if (res.code === 1) {
       ElMessage.success('注册成功，请登录')
-      // 跳转到登录页
       setTimeout(() => {
         router.push('/login')
       }, 1500)
     } else {
       ElMessage.error(res.msg || '注册失败')
-      // 注册失败后刷新验证码
       getCaptchaCode()
     }
   } catch (err) {
-    console.error('注册异常：', err)
     ElMessage.error('网络异常，请重试')
-    // 注册失败后刷新验证码
     getCaptchaCode()
+    console.error(err)
   }
 }
 
-// 跳转到登录页
 const goToLogin = () => {
   router.push('/login')
 }
@@ -191,99 +214,174 @@ onMounted(() => {
 })
 </script>
 
-
-
 <style scoped>
-/* 背景容器 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .register-container {
+  display: flex;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-image: url('@/assets/background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.brand-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
-  overflow: hidden;
 }
 
-/* 注册框 */
-.register-box {
-  position: absolute;
-  right: 25%;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 400px;
-  padding: 40px;
-  background: rgba(255, 255, 255, 0.5);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-/* 标题 */
-.register-title {
+.brand-content {
   text-align: center;
-  color: #333;
-  margin-bottom: 30px;
-  font-size: 24px;
-  font-weight: 500;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-/* 表单容器 */
-.form-container {
+.brand-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.brand-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.brand-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #ffffff;
+  letter-spacing: 2px;
+  margin-bottom: 40px;
+}
+
+.brand-decoration {
+  max-width: 400px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  margin-top: 20px;
+}
+
+.form-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.register-card {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 48px 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.form-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 36px;
+  text-align: center;
+}
+
+.form-content {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* 输入框 */
-.form-input {
-  height: 48px;
-  border-radius: 8px;
-}
-
-/* 验证码行 */
 .captcha-row {
   display: flex;
-  align-items: center;
   gap: 12px;
+  align-items: stretch;
 }
 
-.captcha-input {
-  flex: 1;
-  height: 48px;
-  border-radius: 8px;
-}
-
-/* 验证码图片 */
 .captcha-img {
-  height: 48px;
-  border-radius: 8px;
+  width: 120px;
+  height: auto;
+  min-height: 40px;
+  border-radius: 4px;
   cursor: pointer;
   border: 1px solid #dcdfe6;
+  object-fit: cover;
+  align-self: stretch;
 }
 
-/* 注册按钮 */
-.register-btn {
+.captcha-img:hover {
+  border-color: #409eff;
+}
+
+.register-button {
   width: 100%;
-  height: 48px;
+  height: 44px;
   font-size: 16px;
-  border-radius: 8px;
-  margin-top: 10px;
+  font-weight: 500;
+  margin-top: 8px;
+  background: #4a90e2;
+  border-color: #4a90e2;
 }
 
-/* 登录链接 */
-.login-link {
+.register-button:hover {
+  background: #357abd;
+  border-color: #357abd;
+}
+
+.login-tip {
   text-align: center;
-  margin-top: 15px;
   font-size: 14px;
-  color: #666;
+  color: #666666;
+  margin-top: 8px;
 }
 
-.login-link span {
-  color: #409eff;
+.login-link {
+  color: #4a90e2;
   cursor: pointer;
-  margin-left: 5px;
+  font-weight: 500;
+  margin-left: 4px;
 }
 
-.login-link span:hover {
+.login-link:hover {
+  color: #357abd;
   text-decoration: underline;
 }
+
+:deep(.el-input__wrapper) {
+  padding: 10px 15px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #c0c4cc inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #4a90e2 inset !important;
+}
 </style>
+

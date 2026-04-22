@@ -1,95 +1,73 @@
 <template>
-  <!-- 背景容器 -->
   <div class="login-container">
-    <!-- 登录框 -->
-    <div class="login-box">
-      <h2 class="login-title">用户登录</h2>
-
-      <!-- 登录方式切换 -->
-      <div class="tab-container">
-        <div
-          class="tab-item"
-          :class="{ active: activeTab === 'account' }"
-          @click="activeTab = 'account'"
-        >
-          账号密码登录
+    <!-- 左侧品牌展示区 -->
+    <div class="brand-section">
+      <div class="brand-content">
+        <div class="brand-header">
+          <img src="@/assets/logo.png" alt="Logo" class="brand-logo" />
+          <h1 class="brand-title">淇安荣讯</h1>
         </div>
-        <div
-          class="tab-item"
-          :class="{ active: activeTab === 'sms' }"
-          @click="activeTab = 'sms'"
-        >
-          短信验证码登录
-        </div>
+        <p class="brand-subtitle">全网舆情监测 · 实时数据分析</p>
+        <img src="@/assets/u70.png" alt="Decoration" class="brand-decoration" />
       </div>
+    </div>
 
-      <!-- 账号密码登录表单 -->
-      <div v-show="activeTab === 'account'" class="form-container">
-        <el-input
-          v-model="accountForm.username"
-          placeholder="请输入账号"
-          clearable
-          class="form-input"
-        />
-        <el-input
-          v-model="accountForm.password"
-          type="password"
-          placeholder="请输入密码"
-          show-password
-          clearable
-          class="form-input"
-        />
-        <div class="captcha-row">
-          <el-input
-            v-model="accountForm.code"
-            placeholder="图形验证码"
-            clearable
-            class="captcha-input"
-          />
-          <img
-            :src="`data:image/png;base64,${captchaImg}`"
-            @click="getCaptchaCode"
-            class="captcha-img"
-            alt="图形验证码"
-          />
-        </div>
-        <el-button type="primary" class="login-btn" @click="handleAccountLogin">
-          登录
-        </el-button>
-        <div class="register-link">
-          还没有账号？<span @click="goToRegister">立即注册</span>
-        </div>
-      </div>
+    <!-- 右侧登录表单区 -->
+    <div class="form-section">
+      <div class="login-card">
+        <h2 class="form-title">用户登录</h2>
 
-      <!-- 短信验证码登录表单 -->
-      <div v-show="activeTab === 'sms'" class="form-container">
-        <el-input
-          v-model="smsForm.phone"
-          placeholder="请输入手机号"
-          clearable
-          class="form-input"
-        />
-        <div class="captcha-row">
+        <div class="form-content">
           <el-input
-            v-model="smsForm.code"
-            placeholder="短信验证码"
+            v-model="accountForm.username"
+            placeholder="请输入用户名"
+            size="large"
             clearable
-            class="captcha-input"
-          />
-          <el-button
-            type="primary"
-            :disabled="countDown > 0"
-            class="sms-btn"
-            @click="sendSmsCode"
           >
-            {{ countDown > 0 ? `${countDown}s后重发` : '获取验证码' }}
+            <template #prefix>
+              <el-icon><User /></el-icon>
+            </template>
+          </el-input>
+
+          <el-input
+            v-model="accountForm.password"
+            :type="showPassword ? 'text' : 'password'"
+            placeholder="请输入密码"
+            size="large"
+            clearable
+          >
+            <template #prefix>
+              <el-icon><Lock /></el-icon>
+            </template>
+          </el-input>
+
+          <div class="captcha-row">
+            <el-input
+              v-model="accountForm.code"
+              placeholder="请输入验证码"
+              size="large"
+              clearable
+            />
+            <img
+              :src="`data:image/png;base64,${captchaImg}`"
+              @click="getCaptchaCode"
+              class="captcha-img"
+              alt="验证码"
+            />
+          </div>
+
+          <div class="form-options">
+            <el-checkbox v-model="showPassword">显示密码</el-checkbox>
+            <span class="forgot-link" @click="handleForgetPassword">忘记密码？</span>
+          </div>
+
+          <el-button type="primary" size="large" class="login-button" @click="handleAccountLogin">
+            登录
           </el-button>
-        </div>
-        <el-button type="primary" class="login-btn" @click="handleSmsLogin">
-          登录
-        </el-button>
-        <div class="register-link">
-          还没有账号？<span @click="goToRegister">立即注册</span>
+
+          <div class="register-tip">
+            还没有账号？<span class="register-link" @click="goToRegister">立即注册</span>
+          </div>
         </div>
       </div>
     </div>
@@ -97,17 +75,15 @@
 </template>
 
 <script setup>
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-const router = useRouter()
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { getCaptchaCodeAPI, loginAPI } from '@/api'
 import { ElMessage } from 'element-plus'
-import { getCaptchaCodeAPI, loginAPI , codeLoginAPI, getSmsCodeAPI } from '@/api'
+import { User, Lock } from '@element-plus/icons-vue'
 import md5 from 'js-md5'
 
-// 登录方式切换
-const activeTab = ref('account')
+const router = useRouter()
 
-// 账号密码登录表单
 const accountForm = reactive({
   username: '',
   password: '',
@@ -115,42 +91,28 @@ const accountForm = reactive({
   uuid: ''
 })
 
-// 短信登录表单
-const smsForm = reactive({
-  phone: '',
-  code: '',
-  uuid:''
-})
-
-// 图形验证码相关
+const showPassword = ref(false)
 const captchaImg = ref('')
-const captchaUuid = ref('')
-
-// 短信倒计时
-const countDown = ref(0)
-let timer = null
-
-// 获取图形验证码
 
 const getCaptchaCode = async () => {
   try {
     const res = await getCaptchaCodeAPI()
     if (res.code === 1) {
       captchaImg.value = res.data.img
-      captchaUuid.value = res.data.uuid
       accountForm.uuid = res.data.uuid
+      accountForm.code = ''
     } else {
       ElMessage.error(res.msg || '获取验证码失败')
     }
   } catch (err) {
     ElMessage.error('网络异常，请重试')
+    console.error(err)
   }
 }
 
-// 账号密码登录
 const handleAccountLogin = async () => {
   if (!accountForm.username) {
-    ElMessage.warning('请输入账号')
+    ElMessage.warning('请输入用户名')
     return
   }
   if (!accountForm.password) {
@@ -158,7 +120,7 @@ const handleAccountLogin = async () => {
     return
   }
   if (!accountForm.code) {
-    ElMessage.warning('请输入图形验证码')
+    ElMessage.warning('请输入验证码')
     return
   }
 
@@ -172,251 +134,238 @@ const handleAccountLogin = async () => {
 
     if (res.code === 1) {
       ElMessage.success('登录成功')
-      // 保存 token 到本地存储
-      if (res.data.token) {
+      // 保存token和用户信息
+      if (res.data && res.data.token) {
         localStorage.setItem('token', res.data.token)
-        localStorage.setItem('userName', res.data.userInfo.userName)
-        localStorage.setItem('userId', res.data.userInfo.userId)
-        
-        // 这里可以跳转到首页
-        router.push('/home')
+        // 兼容不同的返回数据结构
+        if (res.data.userInfo) {
+          localStorage.setItem('userName', res.data.userInfo.userName)
+          localStorage.setItem('userId', res.data.userInfo.userId)
+        } else {
+          localStorage.setItem('userName', res.data.userName || accountForm.username)
+          localStorage.setItem('userId', res.data.userId || '')
+        }
       }
-     
+      // 延迟跳转，确保数据保存完成
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 500)
     } else {
       ElMessage.error(res.msg || '登录失败')
-      // 登录失败后刷新验证码
       getCaptchaCode()
     }
   } catch (err) {
     ElMessage.error('网络异常，请重试')
-    console.error(err)
-    // 登录失败后刷新验证码
     getCaptchaCode()
+    console.error(err)
   }
 }
 
-// 发送短信验证码
-const sendSmsCode = async () => {
-  if (!smsForm.phone) {
-    ElMessage.warning('请输入手机号')
-    return
-  }
-
-  // 验证手机号格式
-  const phoneReg = /^1[3-9]\d{9}$/
-  if (!phoneReg.test(smsForm.phone)) {
-    ElMessage.warning('请输入正确的手机号')
-    return
-  }
-
-  try {
-    // 调用接口发送短信
-    const res = await getSmsCodeAPI(
-      smsForm.phone
-    )
-
-    if (res.code === 1) {
-      ElMessage.success('验证码已发送')
-      smsForm.uuid = res.data.uuid
-      // 启动倒计时
-      countDown.value = 60
-      timer = setInterval(() => {
-        countDown.value--
-        if (countDown.value <= 0) {
-          clearInterval(timer)
-        }
-      }, 1000)
-    } else {
-      ElMessage.error(res.msg || '发送失败，请重试')
-    }
-  } catch (err) {
-    console.error('发送短信验证码异常：', err)
-    ElMessage.error('网络异常，请重试')
-  }
+const handleForgetPassword = () => {
+  ElMessage.info('请联系管理员重置密码')
 }
 
-// 短信验证码登录
-const handleSmsLogin = async () => {
-  // 1. 校验非空
-  if (!smsForm.phone) {
-    ElMessage.warning('请输入手机号')
-    return
-  }
-  if (!smsForm.code) {
-    ElMessage.warning('请输入短信验证码')
-    return
-  }
-
-  try {
-    // 2. 请求后端短信登录接口
-    const res = await codeLoginAPI({
-       phone: smsForm.phone,
-       code:  smsForm.code,
-       uuid:  smsForm.uuid
-    })
-
-    
-    
-    // 3. 登录成功
-    if (res.code === 1) {
-      ElMessage.success('登录成功')
-
-      // 4. 保存 token（必须！）
-      if (res.data.token) {
-        localStorage.setItem('token', res.data.token)
-        localStorage.setItem('userName', res.data.userInfo.userName)
-        localStorage.setItem('userId', res.data.userInfo.userId)
-      }
-
-      // 5. 跳转到主页
-      router.push('/home')
-    } else {
-      // 失败提示
-      ElMessage.error(res.msg || '登录失败，请重试')
-    }
-  } catch (err) {
-    console.error('短信登录异常：', err)
-    ElMessage.error('网络异常或验证码错误')
-  }
-}
-
-// 跳转到注册页面
 const goToRegister = () => {
   router.push('/register')
 }
 
-// 页面加载时获取验证码
 onMounted(() => {
   getCaptchaCode()
-})
-
-// 组件卸载时清除定时器
-onUnmounted(() => {
-  if (timer) clearInterval(timer)
 })
 </script>
 
 <style scoped>
-/* 背景容器 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 .login-container {
+  display: flex;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  position: relative;
-  overflow: hidden;
+  background-image: url('@/assets/background.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
-/* 登录框 */
-.login-box {
-  position: absolute;
-  right: 15%; /* 右侧75%位置，即距离右边25% */
-  top: 50%;
-  transform: translateY(-50%); /* 上下居中 */
-  width: 400px;
-  padding: 40px;
-  background: rgba(255, 255, 255, 0.5); /* 透明度50% */
-  border-radius: 12px;
-  backdrop-filter: blur(10px); /* 毛玻璃效果，增强质感 */
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-}
-
-/* 标题 */
-.login-title {
-  text-align: center;
-  color: #333;
-  margin-bottom: 30px;
-  font-size: 24px;
-  font-weight: 500;
-}
-
-/* 切换栏 */
-.tab-container {
-  display: flex;
-  margin-bottom: 30px;
-  border-bottom: 1px solid #eee;
-}
-
-.tab-item {
+/* 左侧品牌区 */
+.brand-section {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.brand-content {
   text-align: center;
-  padding: 12px 0;
-  cursor: pointer;
-  font-size: 16px;
-  color: #666;
-  transition: all 0.3s;
+  color: #ffffff;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.tab-item.active {
-  color: #409eff;
-  font-weight: 500;
-  border-bottom: 2px solid #409eff;
+.brand-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
 }
 
-/* 表单容器 */
-.form-container {
+.brand-logo {
+  height: 60px;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-title {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.brand-subtitle {
+  font-size: 18px;
+  font-weight: 400;
+  color: #ffffff;
+  letter-spacing: 2px;
+  margin-bottom: 40px;
+}
+
+.brand-decoration {
+  max-width: 400px;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  margin-top: 20px;
+}
+
+/* 右侧表单区 */
+.form-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 48px 40px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.form-title {
+  font-size: 26px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 36px;
+  text-align: center;
+}
+
+.form-content {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-/* 输入框 */
-.form-input {
-  height: 48px;
-  border-radius: 8px;
-}
-
-/* 验证码行 */
 .captcha-row {
   display: flex;
-  align-items: center;
   gap: 12px;
+  align-items: stretch;
 }
 
-.captcha-input {
-  flex: 1;
-  height: 48px;
-  border-radius: 8px;
-}
-
-/* 验证码图片 */
 .captcha-img {
-  height: 48px;
-  border-radius: 8px;
+  width: 120px;
+  height: auto;
+  min-height: 40px;
+  border-radius: 4px;
   cursor: pointer;
   border: 1px solid #dcdfe6;
+  object-fit: cover;
+  align-self: stretch;
 }
 
-/* 短信按钮 */
-.sms-btn {
-  height: 48px;
-  white-space: nowrap;
-  border-radius: 8px;
+.captcha-img:hover {
+  border-color: #409eff;
 }
 
-/* 登录按钮 */
-.login-btn {
-  width: 100%;
-  height: 48px;
-  font-size: 16px;
-  border-radius: 8px;
-  margin-top: 10px;
-}
-
-/* 注册链接 */
-.register-link {
-  text-align: center;
-  margin-top: 15px;
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 14px;
-  color: #666;
 }
 
-.register-link span {
-  color: #409eff;
+.forgot-link {
+  color: #4a90e2;
   cursor: pointer;
-  margin-left: 5px;
+  transition: color 0.3s;
 }
 
-.register-link span:hover {
+.forgot-link:hover {
+  color: #357abd;
+}
+
+.login-button {
+  width: 100%;
+  height: 44px;
+  font-size: 16px;
+  font-weight: 500;
+  margin-top: 8px;
+  background: #4a90e2;
+  border-color: #4a90e2;
+}
+
+.login-button:hover {
+  background: #357abd;
+  border-color: #357abd;
+}
+
+.register-tip {
+  text-align: center;
+  font-size: 14px;
+  color: #666666;
+  margin-top: 8px;
+}
+
+.register-link {
+  color: #4a90e2;
+  cursor: pointer;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.register-link:hover {
+  color: #357abd;
   text-decoration: underline;
+}
+
+/* Element Plus 样式覆盖 */
+:deep(.el-input__wrapper) {
+  padding: 10px 15px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+:deep(.el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #c0c4cc inset;
+}
+
+:deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #4a90e2 inset !important;
+}
+
+:deep(.el-checkbox__label) {
+  font-size: 14px;
+  color: #666666;
 }
 </style>

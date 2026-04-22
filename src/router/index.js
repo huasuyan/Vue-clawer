@@ -18,16 +18,28 @@ const routes = [
   {
     path: '/',
     component: () => import('@/views/Layout.vue'), // 主界面壳子
-    redirect: '/home', // 默认显示运行概览
+    redirect: '/dashboard', // 默认显示数据大屏
     children: [
       //子路由 → 内容显示在 <router-view>
       {
-        path: 'home',
-        component: () => import('@/views/Home.vue')
+        path: 'dashboard',
+        component: () => import('@/views/Dashboard.vue')
       },
       {
-        path: 'task',
-        component: () => import('@/views/Task.vue')
+        path: 'public-opinion/search',
+        component: () => import('@/views/PublicOpinionSearch.vue')
+      },
+      {
+        path: 'public-opinion/history',
+        component: () => import('@/views/PublicOpinionHistory.vue')
+      },
+      {
+        path: 'warning/config',
+        component: () => import('@/views/WarningConfig.vue')
+      },
+      {
+        path: 'warning/records',
+        component: () => import('@/views/WarningRecords.vue')
       }
     ]
   }
@@ -43,9 +55,9 @@ router.beforeEach((to, from, next) => {
 
   // 要去登录页或注册页
   if (to.path === '/login' || to.path === '/register') {
-    // 如果有 token，跳转到运行概览
+    // 如果有 token，跳转到数据大屏
     if (token) {
-      return next('/overview')
+      return next('/dashboard')
     }
     // 没有 token，放行
     return next()

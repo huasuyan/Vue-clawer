@@ -6,7 +6,7 @@
         <div class="logo-icon">
           <img src="@/assets/logo.png" alt="Logo" class="logo-image" />
         </div>
-        <span class="logo-text">快爬</span>
+        <span class="logo-text">淇安荣讯</span>
       </div>
       <div class="user-info">
         <div class="user-dropdown" @click="toggleDropdown">
@@ -36,8 +36,109 @@
     <div class="content-wrapper">
       <!-- 左侧菜单 -->
       <div class="aside">
-        <router-link to="/home">运行概览</router-link>
-        <router-link to="/task">爬虫管理</router-link>
+        <router-link to="/dashboard">数据大屏</router-link>
+
+        <!-- 舆情监测下拉菜单 -->
+        <div class="menu-item">
+          <div class="menu-title" @click="togglePublicOpinion">
+            <span>舆情监测</span>
+            <el-icon class="menu-arrow" :class="{ 'is-expanded': showPublicOpinion }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <transition name="slide">
+            <div v-show="showPublicOpinion" class="submenu">
+              <router-link to="/public-opinion/search">舆情检索</router-link>
+              <router-link to="/public-opinion/history">检索记录</router-link>
+            </div>
+          </transition>
+        </div>
+
+        <!-- 舆情预警下拉菜单 -->
+        <div class="menu-item">
+          <div class="menu-title" @click="toggleWarning">
+            <span>舆情预警</span>
+            <el-icon class="menu-arrow" :class="{ 'is-expanded': showWarning }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <transition name="slide">
+            <div v-show="showWarning" class="submenu">
+              <router-link to="/warning/config">预警专题配置</router-link>
+              <router-link to="/warning/records">预警记录</router-link>
+            </div>
+          </transition>
+        </div>
+
+        <!-- 舆情分析下拉菜单 -->
+        <div class="menu-item">
+          <div class="menu-title" @click="toggleAnalysis">
+            <span>舆情分析</span>
+            <el-icon class="menu-arrow" :class="{ 'is-expanded': showAnalysis }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <transition name="slide">
+            <div v-show="showAnalysis" class="submenu">
+              <router-link to="/analysis/trend">趋势分析</router-link>
+              <router-link to="/analysis/sentiment">情感分析</router-link>
+            </div>
+          </transition>
+        </div>
+
+        <!-- 办件管理下拉菜单 -->
+        <div class="menu-item">
+          <div class="menu-title" @click="toggleDocument">
+            <span>办件管理</span>
+            <el-icon class="menu-arrow" :class="{ 'is-expanded': showDocument }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <transition name="slide">
+            <div v-show="showDocument" class="submenu">
+              <router-link to="/document/list">办件列表</router-link>
+              <router-link to="/document/process">办件处理</router-link>
+            </div>
+          </transition>
+        </div>
+
+        <!-- 内容管理下拉菜单 -->
+        <div class="menu-item">
+          <div class="menu-title" @click="toggleContent">
+            <span>内容管理</span>
+            <el-icon class="menu-arrow" :class="{ 'is-expanded': showContent }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <transition name="slide">
+            <div v-show="showContent" class="submenu">
+              <router-link to="/content/article">文章管理</router-link>
+              <router-link to="/content/media">媒体管理</router-link>
+            </div>
+          </transition>
+        </div>
+
+        <!-- 系统管理下拉菜单 -->
+        <div class="menu-item">
+          <div class="menu-title" @click="toggleSystem">
+            <span>系统管理</span>
+            <el-icon class="menu-arrow" :class="{ 'is-expanded': showSystem }">
+              <ArrowDown />
+            </el-icon>
+          </div>
+          <transition name="slide">
+            <div v-show="showSystem" class="submenu">
+              <router-link to="/system/user">用户管理</router-link>
+              <router-link to="/system/role">角色管理</router-link>
+              <router-link to="/system/log">日志管理</router-link>
+            </div>
+          </transition>
+        </div>
+
+        <router-link to="/message" class="message-link">
+          <span>我的消息</span>
+          <el-badge :value="10" class="message-badge" />
+        </router-link>
       </div>
 
       <!-- 右侧内容区域 -->
@@ -76,6 +177,12 @@ import md5 from 'js-md5'
 const router = useRouter()
 const showDropdown = ref(false)
 const userName = ref(localStorage.getItem('userName') || '用户')
+const showPublicOpinion = ref(false)
+const showWarning = ref(false)
+const showAnalysis = ref(false)
+const showDocument = ref(false)
+const showContent = ref(false)
+const showSystem = ref(false)
 
 // 修改密码对话框
 const showPasswordDialog = ref(false)
@@ -83,6 +190,30 @@ const passwordForm = ref({
   password: '',
   confirmPassword: ''
 })
+
+const togglePublicOpinion = () => {
+  showPublicOpinion.value = !showPublicOpinion.value
+}
+
+const toggleWarning = () => {
+  showWarning.value = !showWarning.value
+}
+
+const toggleAnalysis = () => {
+  showAnalysis.value = !showAnalysis.value
+}
+
+const toggleDocument = () => {
+  showDocument.value = !showDocument.value
+}
+
+const toggleContent = () => {
+  showContent.value = !showContent.value
+}
+
+const toggleSystem = () => {
+  showSystem.value = !showSystem.value
+}
 
 const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
@@ -179,8 +310,8 @@ const logout = async() => {
   height: 100vh;
 }
 .header {
-  background: #1890ff;
-  color: white;
+  background: #ffffff;
+  color: #333;
   padding: 0 20px;
   height: 60px;
   display: flex;
@@ -188,6 +319,8 @@ const logout = async() => {
   justify-content: space-between;
   font-size: 18px;
   font-weight: bold;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid #f0f0f0;
 }
 
 .logo {
@@ -202,20 +335,24 @@ const logout = async() => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 8px;
   transition: all 0.3s;
 }
 
 .logo-icon:hover {
-  background: rgba(255, 255, 255, 0.3);
   transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
 .logo-text {
   font-size: 22px;
   font-weight: 600;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .logo-image {
   width: 100%;
@@ -229,19 +366,128 @@ const logout = async() => {
 }
 .aside {
   width: 180px;
-  background: #262626;
-  color: white;
+  background: #fafafa;
+  color: #333;
   padding: 20px 0;
+  border-right: 1px solid #f0f0f0;
 }
 .aside a {
   display: block;
   padding: 12px 20px;
-  color: white;
+  color: #333;
   text-decoration: none;
   transition: all 0.3s;
+  border-left: 3px solid transparent;
+  font-weight: 500;
 }
 .aside a:hover {
-  background: #1890ff;
+  background: #f0f0f0;
+  color: #667eea;
+  border-left-color: #667eea;
+}
+.aside a.router-link-active {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, transparent 100%);
+  color: #667eea;
+  border-left-color: #667eea;
+}
+
+.menu-item {
+  margin: 0;
+}
+
+.menu-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.3s;
+  border-left: 3px solid transparent;
+  font-weight: 500;
+}
+
+.menu-title:hover {
+  background: #f0f0f0;
+  color: #667eea;
+}
+
+.menu-arrow {
+  transition: transform 0.3s;
+  font-size: 14px;
+}
+
+.menu-arrow.is-expanded {
+  transform: rotate(180deg);
+}
+
+.submenu {
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.submenu a {
+  padding: 10px 20px 10px 40px;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.submenu a:hover {
+  background: #ebebeb;
+}
+
+.submenu a.router-link-active {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.15) 0%, transparent 100%);
+}
+
+.slide-enter-active,
+.slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-enter-from,
+.slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.slide-enter-to,
+.slide-leave-from {
+  max-height: 200px;
+  opacity: 1;
+}
+
+.message-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  color: #333;
+  text-decoration: none;
+  transition: all 0.3s;
+  border-left: 3px solid transparent;
+  font-weight: 500;
+}
+
+.message-link:hover {
+  background: #f0f0f0;
+  color: #667eea;
+  border-left-color: #667eea;
+}
+
+.message-link.router-link-active {
+  background: linear-gradient(90deg, rgba(102, 126, 234, 0.1) 0%, transparent 100%);
+  color: #667eea;
+  border-left-color: #667eea;
+}
+
+.message-badge {
+  margin-left: auto;
+}
+
+.message-badge :deep(.el-badge__content) {
+  background-color: #f56c6c;
+  border: none;
 }
 .user-info {
   position: relative;
@@ -253,19 +499,20 @@ const logout = async() => {
   gap: 8px;
   cursor: pointer;
   padding: 8px 12px;
-  border-radius: 4px;
-  transition: background 0.3s;
+  border-radius: 8px;
+  transition: all 0.3s;
+  color: #333;
 }
 
 .user-dropdown:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: #f5f5f5;
 }
 
 .user-avatar {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #262626;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .dropdown-icon {
