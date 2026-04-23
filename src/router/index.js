@@ -40,6 +40,46 @@ const routes = [
       {
         path: 'warning/records',
         component: () => import('@/views/WarningRecords.vue')
+      },
+      {
+        path: 'system/organization',
+        component: () => import('@/views/system/Organization.vue')
+      },
+      {
+        path: 'system/role',
+        component: () => import('@/views/system/Role.vue')
+      },
+      {
+        path: 'system/log',
+        component: () => import('@/views/system/Log.vue')
+      },
+      {
+        path: 'document/warning-map',
+        component: () => import('@/views/document/WarningMap.vue')
+      },
+      {
+        path: 'document/process',
+        component: () => import('@/views/document/DocumentProcess.vue')
+      },
+      {
+        path: 'document/query',
+        component: () => import('@/views/document/DocumentQuery.vue')
+      },
+      {
+        path: 'analysis/hotspot',
+        component: () => import('@/views/analysis/HotspotAnalysis.vue')
+      },
+      {
+        path: 'analysis/competitor',
+        component: () => import('@/views/analysis/CompetitorAnalysis.vue')
+      },
+      {
+        path: 'analysis/report',
+        component: () => import('@/views/analysis/Report.vue')
+      },
+      {
+        path: 'analysis/report-setting',
+        component: () => import('@/views/analysis/ReportSetting.vue')
       }
     ]
   }

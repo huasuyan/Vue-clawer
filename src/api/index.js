@@ -120,3 +120,22 @@ export const activateCrawlerAPI = (jobId) => {
     method: 'post'
   })
 }
+
+
+// 获取预警专题列表
+export const getAlertListAPI = (data) => {
+  return request({
+    url: '/api/v1/specialAlert/pageList',
+    method: 'post',
+    data
+  })
+}
+
+// 获取部门树
+export const getDeptTreeAPI = (deptId) => {
+  return request({
+    url: '/api/v1/dept/tree',
+    method: 'get',
+    params: { deptId }
+  })
+}

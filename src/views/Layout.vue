@@ -80,8 +80,10 @@
           </div>
           <transition name="slide">
             <div v-show="showAnalysis" class="submenu">
-              <router-link to="/analysis/trend">趋势分析</router-link>
-              <router-link to="/analysis/sentiment">情感分析</router-link>
+              <router-link to="/analysis/hotspot">热点分析</router-link>
+              <router-link to="/analysis/competitor">竞品分析</router-link>
+              <router-link to="/analysis/report">舆情报告</router-link>
+              <router-link to="/analysis/report-setting">舆情报告设置</router-link>
             </div>
           </transition>
         </div>
@@ -96,24 +98,12 @@
           </div>
           <transition name="slide">
             <div v-show="showDocument" class="submenu">
-              <router-link to="/document/list">办件列表</router-link>
-              <router-link to="/document/process">办件处理</router-link>
-            </div>
-          </transition>
-        </div>
-
-        <!-- 内容管理下拉菜单 -->
-        <div class="menu-item">
-          <div class="menu-title" @click="toggleContent">
-            <span>内容管理</span>
-            <el-icon class="menu-arrow" :class="{ 'is-expanded': showContent }">
-              <ArrowDown />
-            </el-icon>
-          </div>
-          <transition name="slide">
-            <div v-show="showContent" class="submenu">
-              <router-link to="/content/article">文章管理</router-link>
-              <router-link to="/content/media">媒体管理</router-link>
+              <router-link to="/document/warning-map">预警地图</router-link>
+              <router-link to="/document/process" class="submenu-with-badge">
+                <span>办件办理</span>
+                <el-badge :value="10" class="submenu-badge" />
+              </router-link>
+              <router-link to="/document/query">办件查询</router-link>
             </div>
           </transition>
         </div>
@@ -128,9 +118,9 @@
           </div>
           <transition name="slide">
             <div v-show="showSystem" class="submenu">
-              <router-link to="/system/user">用户管理</router-link>
               <router-link to="/system/role">角色管理</router-link>
-              <router-link to="/system/log">日志管理</router-link>
+              <router-link to="/system/organization">组织架构</router-link>
+              <router-link to="/system/log">操作日志</router-link>
             </div>
           </transition>
         </div>
@@ -181,7 +171,6 @@ const showPublicOpinion = ref(false)
 const showWarning = ref(false)
 const showAnalysis = ref(false)
 const showDocument = ref(false)
-const showContent = ref(false)
 const showSystem = ref(false)
 
 // 修改密码对话框
@@ -205,10 +194,6 @@ const toggleAnalysis = () => {
 
 const toggleDocument = () => {
   showDocument.value = !showDocument.value
-}
-
-const toggleContent = () => {
-  showContent.value = !showContent.value
 }
 
 const toggleSystem = () => {
@@ -438,6 +423,21 @@ const logout = async() => {
 
 .submenu a.router-link-active {
   background: linear-gradient(90deg, rgba(102, 126, 234, 0.15) 0%, transparent 100%);
+}
+
+.submenu-with-badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.submenu-badge {
+  margin-left: auto;
+}
+
+.submenu-badge :deep(.el-badge__content) {
+  background-color: #f56c6c;
+  border: none;
 }
 
 .slide-enter-active,
