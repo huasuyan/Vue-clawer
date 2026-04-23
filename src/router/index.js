@@ -49,9 +49,17 @@ const routes = [
         path: 'opinion-report/setting',
         component: () => import('@/views/OpinionReportSetting.vue')
       },
-      {
+{
         path: 'message',
         component: () => import('@/views/MyMessage.vue')
+      },
+      {
+        path: 'system/user',
+        component: () => import('@/views/SystemUser.vue')
+      },
+      {
+        path: 'system/role',
+        component: () => import('@/views/SystemRole.vue')
       }
     ]
   }

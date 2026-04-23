@@ -2,7 +2,7 @@
   <div class="opinion-report-setting">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2 class="page-title">舆情报告设置</h2>
+      <h2 class="page-title">舆情报告配置</h2>
     </div>
 
     <!-- 舆情报告主题列表 -->

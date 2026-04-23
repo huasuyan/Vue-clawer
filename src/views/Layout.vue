@@ -80,7 +80,7 @@
           </div>
             <div v-show="showAnalysis" class="submenu">
               <router-link to="/opinion-report/list">舆情报告列表</router-link>
-              <router-link to="/opinion-report/setting">舆情报告设置</router-link>
+              <router-link to="/opinion-report/setting">舆情报告配置</router-link>
             </div>
         </div>
 
