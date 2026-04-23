@@ -40,6 +40,18 @@ const routes = [
       {
         path: 'warning/records',
         component: () => import('@/views/WarningRecords.vue')
+      },
+{
+        path: 'opinion-report/list',
+        component: () => import('@/views/OpinionReport.vue')
+      },
+      {
+        path: 'opinion-report/setting',
+        component: () => import('@/views/OpinionReportSetting.vue')
+      },
+      {
+        path: 'message',
+        component: () => import('@/views/MyMessage.vue')
       }
     ]
   }

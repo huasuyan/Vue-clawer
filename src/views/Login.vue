@@ -4,7 +4,7 @@
     <div class="brand-section">
       <div class="brand-content">
         <div class="brand-header">
-          <img src="@/assets/logo.png" alt="Logo" class="brand-logo" />
+          <img src="@/assets/logo2.jpeg" alt="Logo" class="brand-logo" />
           <h1 class="brand-title">淇安荣讯</h1>
         </div>
         <p class="brand-subtitle">全网舆情监测 · 实时数据分析</p>

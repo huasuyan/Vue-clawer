@@ -4,7 +4,7 @@
     <div class="header">
       <div class="logo">
         <div class="logo-icon">
-          <img src="@/assets/logo.png" alt="Logo" class="logo-image" />
+          <img src="@/assets/logo2.jpeg" alt="Logo" class="logo-image" />
         </div>
         <span class="logo-text">淇安荣讯</span>
       </div>
@@ -78,12 +78,10 @@
               <ArrowDown />
             </el-icon>
           </div>
-          <transition name="slide">
             <div v-show="showAnalysis" class="submenu">
-              <router-link to="/analysis/trend">趋势分析</router-link>
-              <router-link to="/analysis/sentiment">情感分析</router-link>
+              <router-link to="/opinion-report/list">舆情报告列表</router-link>
+              <router-link to="/opinion-report/setting">舆情报告设置</router-link>
             </div>
-          </transition>
         </div>
 
         <!-- 办件管理下拉菜单 -->
@@ -135,9 +133,9 @@
           </transition>
         </div>
 
-        <router-link to="/message" class="message-link">
+<router-link to="/message" class="message-link">
           <span>我的消息</span>
-          <el-badge :value="10" class="message-badge" />
+          <el-badge v-if="unreadMessageCount > 0" :value="unreadMessageCount" class="message-badge" />
         </router-link>
       </div>
 
@@ -183,6 +181,25 @@ const showAnalysis = ref(false)
 const showDocument = ref(false)
 const showContent = ref(false)
 const showSystem = ref(false)
+
+// 从 localStorage 获取未读消息数量
+const getUnreadCount = () => {
+  const count = localStorage.getItem('unreadMessageCount')
+  return count ? parseInt(count) : 0
+}
+const unreadMessageCount = ref(getUnreadCount())
+
+// 监听存储变化（跨页面同步）
+window.addEventListener('storage', (e) => {
+  if (e.key === 'unreadMessageCount') {
+    unreadMessageCount.value = getUnreadCount()
+  }
+})
+
+// 监听自定义事件（同一页面内同步）
+window.addEventListener('unreadMessageCountChanged', () => {
+  unreadMessageCount.value = getUnreadCount()
+})
 
 // 修改密码对话框
 const showPasswordDialog = ref(false)
