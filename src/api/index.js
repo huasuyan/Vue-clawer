@@ -131,6 +131,68 @@ export const getAlertListAPI = (data) => {
   })
 }
 
+// 创建预警专题
+export const createAlertAPI = (data) => {
+  return request({
+    url: '/api/v1/specialAlert/create',
+    method: 'post',
+    data
+  })
+}
+
+// 编辑预警专题
+export const editAlertAPI = (data) => {
+  return request({
+    url: '/api/v1/specialAlert/edit',
+    method: 'post',
+    data
+  })
+}
+
+// 根据ID查询预警专题
+export const getAlertByIdAPI = (alertId) => {
+  return request({
+    url: '/api/v1/specialAlert/searchById',
+    method: 'get',
+    params: { alertId }
+  })
+}
+
+// 启用/关闭预警专题
+export const toggleAlertStateAPI = (alertId) => {
+  return request({
+    url: '/api/v1/specialAlert/triggerState',
+    method: 'get',
+    params: { alertId }
+  })
+}
+
+// 删除预警专题
+export const deleteAlertAPI = (alertId) => {
+  return request({
+    url: '/api/v1/specialAlert/alertDelete',
+    method: 'get',
+    params: { alertId }
+  })
+}
+
+// 获取所有预警专题（不分页）
+export const searchAllAlertAPI = () => {
+  return request({
+    url: '/api/v1/specialAlert/searchAllAlert',
+    method: 'get'
+  })
+}
+
+// 获取舆情信息列表
+export const getAlertInfoListAPI = (data) => {
+  return request({
+    url: '/api/v1/specialAlert/infoList',
+    method: 'post',
+    data
+  })
+}
+
 // 获取部门树
 export const getDeptTreeAPI = (deptId) => {
   return request({

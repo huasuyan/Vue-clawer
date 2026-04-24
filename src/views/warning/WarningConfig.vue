@@ -23,8 +23,8 @@
 
     <!-- 操作按钮 -->
     <div class="action-bar">
-      <el-button type="primary">新增预警</el-button>
-      <el-button>删除</el-button>
+      <el-button type="primary" @click="handleAdd">新增预警</el-button>
+      <el-button disabled>删除</el-button>
     </div>
 
     <!-- 配置列表 -->
@@ -50,8 +50,8 @@
         </el-table-column>
         <el-table-column prop="alertTrigger" label="预警等级" width="100">
           <template #default="scope">
-            <el-tag :type="getAlertTriggerType(scope.row.alertTrigger)">
-              {{ getAlertTriggerText(scope.row.alertTrigger) }}
+            <el-tag :type="getLevelType(scope.row.alertLevel)">
+              {{ getLevelText(scope.row.alertLevel) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -60,7 +60,7 @@
             {{ getSourceText(scope.row.targetSource) }}
           </template>
         </el-table-column>
-        <el-table-column prop="timeRangeText" label="预警时间" width="120" />
+        <el-table-column prop="timeRangeText" label="预警时间" width="200" />
         <el-table-column prop="alertMethod" label="预警方式" width="120">
           <template #default="scope">
             {{ getAlertMethodText(scope.row.alertMethod) }}
@@ -68,19 +68,23 @@
         </el-table-column>
         <el-table-column prop="triggerState" label="状态" width="100">
           <template #default="scope">
-            <el-tag :type="scope.row.triggerState === 1 ? 'success' : 'info'">
+            <el-button
+              :type="scope.row.triggerState === 1 ? 'success' : 'info'"
+              size="small"
+              @click="handleToggleState(scope.row)"
+            >
               {{ scope.row.triggerState === 1 ? '启用中' : '已停止' }}
-            </el-tag>
+            </el-button>
           </template>
         </el-table-column>
         <el-table-column prop="userId" label="操作人" width="100">
           <template #default="scope">
-            用户{{ scope.row.userId }}
+            {{ scope.row.userName }}
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="操作时间" width="180">
+        <el-table-column prop="createTime" label="上次执行时间" width="180">
           <template #default="scope">
-            {{ formatTime(scope.row.createTime) }}
+            {{ formatTime(scope.row.lastTriggerTime) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
@@ -109,8 +113,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getAlertListAPI } from '@/api'
+import { getAlertListAPI, toggleAlertStateAPI, deleteAlertAPI } from '@/api'
+
+const router = useRouter()
 
 const filterParams = ref({
   alertName: '',
@@ -146,6 +153,45 @@ const convertKeysToCamelCase = (obj) => {
   return obj
 }
 
+// 格式化时间范围，包含星期几
+const formatTimeRange = (timeRange) => {
+  if (!timeRange) return '全天'
+
+  const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+  // 检查是否全天全周
+  if (timeRange.weekdays && Array.isArray(timeRange.weekdays)) {
+    const isAllDay = timeRange.weekdays.every(day => day === 1) &&
+                    timeRange.time?.start === '0:00' &&
+                    timeRange.time?.end === '23:59'
+
+    if (isAllDay) {
+      return '全天'
+    }
+
+    // 获取选中的星期几
+    const selectedWeekdays = timeRange.weekdays
+      .map((val, index) => val === 1 ? weekdayNames[index] : null)
+      .filter(day => day !== null)
+
+    // 格式化时间
+    const timeText = timeRange.time ?
+      `${timeRange.time.start}-${timeRange.time.end}` : '全天'
+
+    // 如果选中了所有星期，只显示时间
+    if (selectedWeekdays.length === 7) {
+      return timeText
+    }
+
+    // 显示星期几和时间
+    return `${selectedWeekdays.join('、')} ${timeText}`
+  }
+
+  // 兜底：只有时间
+  return timeRange.time ?
+    `${timeRange.time.start}-${timeRange.time.end}` : '全天'
+}
+
 // 获取预警专题列表
 const fetchData = async () => {
   loading.value = true
@@ -157,7 +203,7 @@ const fetchData = async () => {
 
     if (filterParams.value.alertName) params.alertName = filterParams.value.alertName
     if (filterParams.value.keyWord) params.keyWord = filterParams.value.keyWord
-    if (filterParams.value.alertLevel) params.alertLevel = filterParams.value.alertLevel
+    if (filterParams.value.alertLevel) params.alertLevel = parseInt(filterParams.value.alertLevel)
     if (filterParams.value.targetSource) params.targetSource = filterParams.value.targetSource
     if (filterParams.value.triggerState !== '') params.triggerState = parseInt(filterParams.value.triggerState)
 
@@ -171,9 +217,8 @@ const fetchData = async () => {
         ...item,
         // 提取 keyWord 中的 keywordGroups
         keyWordGroups: item.keyWord?.keywordGroups || [],
-        // 格式化时间范围
-        timeRangeText: item.timeRange?.time ?
-          `${item.timeRange.time.start}-${item.timeRange.time.end}` : '全天',
+        // 格式化时间范围，包含星期几
+        timeRangeText: formatTimeRange(item.timeRange),
         // 格式化创建时间
         createTime: item.createTime || item.lastTriggerTime || '-'
       }))
@@ -206,22 +251,78 @@ const handleSelectionChange = (selection) => {
   selectedRows.value = selection
 }
 
-const handleEdit = (row) => {
-  console.log('编辑:', row)
-  ElMessage.info('编辑功能开发中')
+const handleAdd = () => {
+  router.push('/warning/add')
 }
 
-const handleDelete = (row) => {
-  ElMessageBox.confirm('确定要删除这条预警配置吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    ElMessage.success('删除成功')
-    fetchData()
-  }).catch(() => {
-    ElMessage.info('已取消删除')
+const handleEdit = (row) => {
+  // 跳转到新增页面，只传递 alertId
+  router.push({
+    path: '/warning/add',
+    query: { alertId: row.alertId, mode: 'edit' }
   })
+}
+
+// 切换预警状态
+const handleToggleState = async (row) => {
+  const actionText = row.triggerState === 1 ? '停止' : '启用'
+
+  try {
+    const confirmed = await ElMessageBox.confirm(
+      `确定要${actionText}该预警专题吗？`,
+      '提示',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    if (confirmed) {
+      const response = await toggleAlertStateAPI(row.alertId)
+
+      if (response.code === 1) {
+        ElMessage.success(`${actionText}成功`)
+        // 刷新列表
+        fetchData()
+      } else {
+        ElMessage.error(response.msg || `${actionText}失败`)
+      }
+    }
+  } catch (error) {
+    // 用户取消操作
+    if (error !== 'cancel') {
+      console.error('切换状态失败:', error)
+      ElMessage.error('操作失败，请稍后重试')
+    }
+  }
+}
+
+const handleDelete = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条预警配置吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    // 调用删除 API
+    const response = await deleteAlertAPI(row.alertId)
+
+    if (response.code === 1) {
+      ElMessage.success('删除成功')
+      // 刷新列表
+      fetchData()
+    } else {
+      ElMessage.error(response.msg || '删除失败')
+    }
+  } catch (error) {
+    // 用户取消操作
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败，请稍后重试')
+    }
+  }
 }
 
 const getLevelType = (level) => {
@@ -248,18 +349,6 @@ const getLevelText = (level) => {
   return textMap[level] || '-'
 }
 
-const getAlertTriggerType = (trigger) => {
-  if (trigger >= 50) return 'danger'
-  if (trigger >= 20) return 'warning'
-  return 'info'
-}
-
-const getAlertTriggerText = (trigger) => {
-  if (trigger >= 50) return '高'
-  if (trigger >= 20) return '中'
-  return '低'
-}
-
 const getSourceText = (source) => {
   const sourceMap = {
     'xinhuanet': '新华网',
@@ -280,6 +369,7 @@ const getAlertMethodText = (method) => {
 }
 
 const formatTime = (time) => {
+  if (time === null) return '-'
   if (!time) return '-'
   if (typeof time === 'string') {
     // 处理 ISO 格式时间

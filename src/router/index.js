@@ -35,11 +35,19 @@ const routes = [
       },
       {
         path: 'warning/config',
-        component: () => import('@/views/WarningConfig.vue')
+        component: () => import('@/views/warning/WarningConfig.vue')
+      },
+      {
+        path: 'warning/add',
+        component: () => import('@/views/warning/WarningAdd.vue')
+      },
+      {
+        path: 'warning/edit/:id',
+        component: () => import('@/views/warning/WarningAdd.vue')
       },
       {
         path: 'warning/records',
-        component: () => import('@/views/WarningRecords.vue')
+        component: () => import('@/views/warning/WarningRecords.vue')
       },
       {
         path: 'system/organization',
