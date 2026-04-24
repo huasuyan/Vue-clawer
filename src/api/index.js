@@ -184,6 +184,15 @@ export const searchAllAlertAPI = () => {
   })
 }
 
+// 统计预警专题数据
+export const getAlertStatisticsAPI = (alertId) => {
+  return request({
+    url: '/api/v1/dataTabulate/specialAlert',
+    method: 'get',
+    params: { alertId }
+  })
+}
+
 // 获取舆情信息列表
 export const getAlertInfoListAPI = (data) => {
   return request({
@@ -193,11 +202,47 @@ export const getAlertInfoListAPI = (data) => {
   })
 }
 
+// 删除舆情信息
+export const deleteAlertInfoAPI = (newsId) => {
+  return request({
+    url: '/api/v1/specialAlert/infoDelete',
+    method: 'post',
+    data: { "newsId": newsId }
+  })
+}
+
 // 获取部门树
 export const getDeptTreeAPI = (deptId) => {
   return request({
     url: '/api/v1/dept/tree',
     method: 'get',
     params: { deptId }
+  })
+}
+
+// 分页查询舆情报告专题列表
+export const getReportListAPI = (data) => {
+  return request({
+    url: '/api/v1/specialReport/pageList',
+    method: 'post',
+    data
+  })
+}
+
+// 创建舆情报告专题
+export const createReportAPI = (data) => {
+  return request({
+    url: '/api/v1/specialReport/create',
+    method: 'post',
+    data
+  })
+}
+
+// 删除舆情报告专题
+export const deleteReportAPI = (specialReportId) => {
+  return request({
+    url: '/api/v1/specialReport/delete',
+    method: 'get',
+    params: { specialReportId }
   })
 }

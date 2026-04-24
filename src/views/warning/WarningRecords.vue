@@ -181,8 +181,9 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { searchAllAlertAPI, getAlertInfoListAPI } from '@/api/index'
+import { searchAllAlertAPI, getAlertInfoListAPI, deleteAlertInfoAPI, getAlertStatisticsAPI } from '@/api/index'
 import * as echarts from 'echarts'
+import chinaJson from '@/assets/china.json'
 
 const filterTopic = ref('')
 const topicOptions = ref([])
@@ -199,8 +200,99 @@ const statisticsData = ref({
 // 地域排名数据
 const regionRankData = ref([])
 
+// 地域图表数据
+const regionChartData = ref([])
+
 // 地图实例
 let mapChart = null
+
+// 地级市到省份的映射表（注意：省份名称需要带"省"字，直辖市带"市"，自治区带完整名称）
+const cityToProvinceMap = {
+  // 直辖市（带"市"）
+  '北京': '北京市', '北京市': '北京市',
+  '上海': '上海市', '上海市': '上海市',
+  '天津': '天津市', '天津市': '天津市',
+  '重庆': '重庆市', '重庆市': '重庆市',
+
+  // 河北省
+  '石家庄': '河北省', '石家庄市': '河北省', '唐山': '河北省', '唐山市': '河北省',
+  '秦皇岛': '河北省', '秦皇岛市': '河北省', '邯郸': '河北省', '邯郸市': '河北省',
+  '邢台': '河北省', '邢台市': '河北省', '保定': '河北省', '保定市': '河北省',
+  '张家口': '河北省', '张家口市': '河北省', '承德': '河北省', '承德市': '河北省',
+  '沧州': '河北省', '沧州市': '河北省', '廊坊': '河北省', '廊坊市': '河北省',
+  '衡水': '河北省', '衡水市': '河北省',
+
+  // 山西省
+  '太原': '山西省', '太原市': '山西省', '大同': '山西省', '大同市': '山西省',
+  '阳泉': '山西省', '阳泉市': '山西省', '长治': '山西省', '长治市': '山西省',
+  '晋城': '山西省', '晋城市': '山西省', '朔州': '山西省', '朔州市': '山西省',
+  '晋中': '山西省', '晋中市': '山西省', '运城': '山西省', '运城市': '山西省',
+  '忻州': '山西省', '忻州市': '山西省', '临汾': '山西省', '临汾市': '山西省',
+  '吕梁': '山西省', '吕梁市': '山西省',
+
+  // 内蒙古（自治区不带"省"）
+  '呼和浩特': '内蒙古自治区', '呼和浩特市': '内蒙古自治区', '包头': '内蒙古自治区', '包头市': '内蒙古自治区',
+  '乌海': '内蒙古自治区', '乌海市': '内蒙古自治区', '赤峰': '内蒙古自治区', '赤峰市': '内蒙古自治区',
+  '通辽': '内蒙古自治区', '通辽市': '内蒙古自治区', '鄂尔多斯': '内蒙古自治区', '鄂尔多斯市': '内蒙古自治区',
+  '呼伦贝尔': '内蒙古自治区', '呼伦贝尔市': '内蒙古自治区', '巴彦淖尔': '内蒙古自治区', '巴彦淖尔市': '内蒙古自治区',
+  '乌兰察布': '内蒙古自治区', '乌兰察布市': '内蒙古自治区',
+
+  // 辽宁省
+  '沈阳': '辽宁省', '沈阳市': '辽宁省', '大连': '辽宁省', '大连市': '辽宁省',
+  '鞍山': '辽宁省', '鞍山市': '辽宁省', '抚顺': '辽宁省', '抚顺市': '辽宁省',
+  '本溪': '辽宁省', '本溪市': '辽宁省', '丹东': '辽宁省', '丹东市': '辽宁省',
+  '锦州': '辽宁省', '锦州市': '辽宁省', '营口': '辽宁省', '营口市': '辽宁省',
+  '阜新': '辽宁省', '阜新市': '辽宁省', '辽阳': '辽宁省', '辽阳市': '辽宁省',
+  '盘锦': '辽宁省', '盘锦市': '辽宁省', '铁岭': '辽宁省', '铁岭市': '辽宁省',
+  '朝阳': '辽宁省', '朝阳市': '辽宁省', '葫芦岛': '辽宁省', '葫芦岛市': '辽宁省',
+
+  // 吉林省
+  '长春': '吉林省', '长春市': '吉林省', '吉林': '吉林省', '吉林市': '吉林省',
+  '四平': '吉林省', '四平市': '吉林省', '辽源': '吉林省', '辽源市': '吉林省',
+  '通化': '吉林省', '通化市': '吉林省', '白山': '吉林省', '白山市': '吉林省',
+  '松原': '吉林省', '松原市': '吉林省', '白城': '吉林省', '白城市': '吉林省',
+
+  // 黑龙江省
+  '哈尔滨': '黑龙江省', '哈尔滨市': '黑龙江省', '齐齐哈尔': '黑龙江省', '齐齐哈尔市': '黑龙江省',
+  '鸡西': '黑龙江省', '鸡西市': '黑龙江省', '鹤岗': '黑龙江省', '鹤岗市': '黑龙江省',
+  '双鸭山': '黑龙江省', '双鸭山市': '黑龙江省', '大庆': '黑龙江省', '大庆市': '黑龙江省',
+  '伊春': '黑龙江省', '伊春市': '黑龙江省', '佳木斯': '黑龙江省', '佳木斯市': '黑龙江省',
+  '七台河': '黑龙江省', '七台河市': '黑龙江省', '牡丹江': '黑龙江省', '牡丹江市': '黑龙江省',
+  '黑河': '黑龙江省', '黑河市': '黑龙江省', '绥化': '黑龙江省', '绥化市': '黑龙江省',
+
+  // 江苏省
+  '南京': '江苏省', '南京市': '江苏省', '无锡': '江苏省', '无锡市': '江苏省',
+  '徐州': '江苏省', '徐州市': '江苏省', '常州': '江苏省', '常州市': '江苏省',
+  '苏州': '江苏省', '苏州市': '江苏省', '南通': '江苏省', '南通市': '江苏省',
+  '连云港': '江苏省', '连云港市': '江苏省', '淮安': '江苏省', '淮安市': '江苏省',
+  '盐城': '江苏省', '盐城市': '江苏省', '扬州': '江苏省', '扬州市': '江苏省',
+  '镇江': '江苏省', '镇江市': '江苏省', '泰州': '江苏省', '泰州市': '江苏省',
+  '宿迁': '江苏省', '宿迁市': '江苏省',
+
+  // 浙江省
+  '杭州': '浙江省', '杭州市': '浙江省', '宁波': '浙江省', '宁波市': '浙江省',
+  '温州': '浙江省', '温州市': '浙江省', '嘉兴': '浙江省', '嘉兴市': '浙江省',
+  '湖州': '浙江省', '湖州市': '浙江省', '绍兴': '浙江省', '绍兴市': '浙江省',
+  '金华': '浙江省', '金华市': '浙江省', '衢州': '浙江省', '衢州市': '浙江省',
+  '舟山': '浙江省', '舟山市': '浙江省', '台州': '浙江省', '台州市': '浙江省',
+  '丽水': '浙江省', '丽水市': '浙江省',
+
+  // 安徽省到海南省
+  '合肥': '安徽省', '合肥市': '安徽省', '福州': '福建省', '福州市': '福建省',
+  '南昌': '江西省', '南昌市': '江西省', '济南': '山东省', '济南市': '山东省',
+  '青岛': '山东省', '青岛市': '山东省', '郑州': '河南省', '郑州市': '河南省',
+  '武汉': '湖北省', '武汉市': '湖北省', '长沙': '湖南省', '长沙市': '湖南省',
+  '广州': '广东省', '广州市': '广东省', '深圳': '广东省', '深圳市': '广东省',
+  '南宁': '广西壮族自治区', '南宁市': '广西壮族自治区', '海口': '海南省', '海口市': '海南省',
+  '成都': '四川省', '成都市': '四川省', '贵阳': '贵州省', '贵阳市': '贵州省',
+  '昆明': '云南省', '昆明市': '云南省', '拉萨': '西藏自治区', '拉萨市': '西藏自治区',
+  '西安': '陕西省', '西安市': '陕西省', '兰州': '甘肃省', '兰州市': '甘肃省',
+  '西宁': '青海省', '西宁市': '青海省', '银川': '宁夏回族自治区', '银川市': '宁夏回族自治区',
+  '乌鲁木齐': '新疆维吾尔自治区', '乌鲁木齐市': '新疆维吾尔自治区',
+
+  // 特殊
+  '全国': '全国', '中国': '全国', '全部': '全国'
+}
 
 const fetchTopics = async () => {
   try {
@@ -245,6 +337,7 @@ const handleFilter = async () => {
   }
 
   try {
+    // 获取信息列表
     const res = await getAlertInfoListAPI({
       alertId: filterTopic.value,
       pageNum: currentPage.value,
@@ -252,13 +345,15 @@ const handleFilter = async () => {
     })
 
     if (res.code === 1 && res.data) {
-      // 修改为 NewsDataList 以匹配 API 返回格式
       recordsList.value = res.data.NewsDataList || []
-      total.value = res.data.total || res.data.NewsDataList?.length || 0
+      total.value = res.data.total || 0
+      if (res.data.pageSize) {
+        pageSize.value = res.data.pageSize
+      }
       hasSearched.value = true
 
-      // 计算统计数据
-      calculateStatistics()
+      // 获取统计数据
+      await fetchStatistics()
 
       ElMessage.success('查询成功')
     } else {
@@ -270,67 +365,88 @@ const handleFilter = async () => {
   }
 }
 
-// 计算统计数据
-const calculateStatistics = () => {
-  const data = recordsList.value
-  statisticsData.value.totalArticles = data.length
+// 获取统计数据
+const fetchStatistics = async () => {
+  try {
+    console.log('开始获取统计数据，预警专题ID:', filterTopic.value)
+    const res = await getAlertStatisticsAPI(filterTopic.value)
 
-  // 统计敏感度
-  statisticsData.value.sensitiveCount = data.filter(item =>
-    item.sensitivityLevel && item.sensitivityLevel > 0
-  ).length
+    console.log('统计数据API返回:', res)
 
-  statisticsData.value.neutralCount = data.filter(item =>
-    item.sentimentType === 0
-  ).length
+    if (res.code === 1 && res.data) {
+      console.log('统计数据解析成功:', res.data)
 
-  statisticsData.value.normalCount = data.filter(item =>
-    !item.sensitivityLevel || item.sensitivityLevel === 0
-  ).length
+      // 更新概览数据
+      statisticsData.value = {
+        totalArticles: res.data.totalArticle || 0,
+        sensitiveCount: res.data.totalSensitive || 0,
+        neutralCount: res.data.totalNeutral || 0,
+        normalCount: res.data.totalNonSensitive || 0
+      }
+      console.log('概览数据已更新:', statisticsData.value)
 
-  // 统计地域分布
-  const regionMap = {}
-  data.forEach(item => {
-    if (item.region) {
-      if (!regionMap[item.region]) {
-        regionMap[item.region] = {
-          count: 0,
-          sensitiveCount: 0
+      // 解析并更新地域排名数据（JSON字符串需要解析）
+      if (res.data.regionRank) {
+        try {
+          const rankList = typeof res.data.regionRank === 'string'
+            ? JSON.parse(res.data.regionRank)
+            : res.data.regionRank
+
+          regionRankData.value = rankList.map(item => ({
+            rank: item.rank,
+            region: item.region,
+            count: item.publishCount,
+            sensitiveCount: item.sensitiveCount
+          }))
+          console.log('地域排名数据已更新:', regionRankData.value)
+        } catch (e) {
+          console.error('解析regionRank失败:', e)
         }
       }
-      regionMap[item.region].count++
-      if (item.sensitivityLevel && item.sensitivityLevel > 0) {
-        regionMap[item.region].sensitiveCount++
+
+      // 解析并保存图表数据（JSON字符串需要解析）
+      if (res.data.regionChart) {
+        try {
+          regionChartData.value = typeof res.data.regionChart === 'string'
+            ? JSON.parse(res.data.regionChart)
+            : res.data.regionChart
+          console.log('图表数据已保存:', regionChartData.value)
+        } catch (e) {
+          console.error('解析regionChart失败:', e)
+        }
       }
-    }
-  })
 
-  // 转换为排名数据
-  regionRankData.value = Object.entries(regionMap)
-    .map(([region, data]) => ({
-      region,
-      count: data.count,
-      sensitiveCount: data.sensitiveCount
-    }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 10)
-    .map((item, index) => ({
-      rank: index + 1,
-      ...item
-    }))
-
-  // 初始化地图
-  nextTick(() => {
-    if (activeTab.value === 'statistics') {
-      initMap()
+      // 初始化地图（如果在统计分析标签页）
+      nextTick(() => {
+        if (activeTab.value === 'statistics') {
+          console.log('当前在统计分析标签页，初始化地图')
+          initMap(regionChartData.value)
+        } else {
+          console.log('当前不在统计分析标签页，activeTab:', activeTab.value)
+        }
+      })
+    } else {
+      console.error('获取统计数据失败 - code:', res.code, 'message:', res.message || res.msg)
+      ElMessage.warning('获取统计数据失败，请稍后重试')
     }
-  })
+  } catch (error) {
+    console.error('获取统计数据异常:', error)
+    ElMessage.error('获取统计数据异常')
+  }
 }
 
 // 初始化地图
-const initMap = () => {
+const initMap = (regionChartData = []) => {
+  console.log('=== initMap 被调用 ===')
+  console.log('传入的 regionChartData:', regionChartData)
+  console.log('regionChartData 类型:', typeof regionChartData, '是否为数组:', Array.isArray(regionChartData))
+  console.log('regionChartData 长度:', regionChartData?.length)
+
   const mapDom = document.getElementById('chinaMap')
-  if (!mapDom) return
+  if (!mapDom) {
+    console.error('找不到地图DOM元素')
+    return
+  }
 
   if (mapChart) {
     mapChart.dispose()
@@ -338,59 +454,110 @@ const initMap = () => {
 
   mapChart = echarts.init(mapDom)
 
-  // 简化版：使用柱状图代替地图（因为需要额外的地图 JSON 数据）
+  // 注册中国地图
+  echarts.registerMap('china', chinaJson)
+
+  // 如果没有传入数据，使用排名数据
+  const chartData = regionChartData.length > 0 ? regionChartData : regionRankData.value
+
+  console.log('使用的数据源:', regionChartData.length > 0 ? 'regionChartData' : 'regionRankData')
+  console.log('最终 chartData:', chartData)
+
+  // 转换数据格式为地图所需格式，并聚合同一省份的数据
+  console.log('原始图表数据:', chartData)
+  console.log('图表数据类型:', typeof chartData, '是否为数组:', Array.isArray(chartData))
+
+  if (chartData.length > 0) {
+    console.log('第一条数据示例:', chartData[0])
+    console.log('第一条数据的所有键:', Object.keys(chartData[0]))
+  }
+
+  const regionDataMap = {}
+  chartData.forEach((item, index) => {
+    const regionName = item.region
+    const mappedName = cityToProvinceMap[regionName] || regionName
+    const value = item.publishCount || item.count || 0
+
+    if (index < 3) {
+      console.log(`[${index}] 原始数据:`, item)
+      console.log(`[${index}] 城市: ${regionName} -> 省份: ${mappedName}`)
+      console.log(`[${index}] publishCount: ${item.publishCount}, count: ${item.count}, 最终值: ${value}`)
+    }
+
+    if (regionDataMap[mappedName]) {
+      regionDataMap[mappedName] += value
+    } else {
+      regionDataMap[mappedName] = value
+    }
+  })
+
+  const mapData = Object.entries(regionDataMap).map(([name, value]) => ({
+    name,
+    value: Number(value) || 0
+  }))
+
+  console.log('转换后的地图数据:', mapData)
+  console.log('地图数据详情:', JSON.stringify(mapData, null, 2))
+
+  // 检查数据有效性
+  const validData = mapData.filter(item => !isNaN(item.value) && item.value > 0)
+  console.log('有效数据:', validData)
+
+  if (validData.length === 0) {
+    console.warn('没有有效的地图数据')
+    ElMessage.warning('暂无有效的地域数据')
+    return
+  }
+
+  const maxValue = Math.max(...validData.map(item => item.value), 10)
+
   const option = {
     title: {
-      text: '地域分布',
+      text: '地域分布情况',
       left: 'center',
-      top: 20
+      top: 20,
+      textStyle: {
+        fontSize: 16,
+        fontWeight: 600,
+        color: '#303133'
+      }
     },
     tooltip: {
-      trigger: 'axis',
-      axisPointer: {
-        type: 'shadow'
-      }
+      trigger: 'item',
+      formatter: '{b}<br/>发文量: {c}'
     },
-    grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '3%',
-      top: '15%',
-      containLabel: true
-    },
-    xAxis: {
-      type: 'category',
-      data: regionRankData.value.map(item => item.region),
-      axisLabel: {
-        rotate: 45,
-        interval: 0
-      }
-    },
-    yAxis: {
-      type: 'value',
-      name: '发文量'
+    visualMap: {
+      min: 0,
+      max: maxValue,
+      text: ['高', '低'],
+      realtime: false,
+      calculable: true,
+      inRange: {
+        color: ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336', '#e53935', '#d32f2f', '#c62828', '#b71c1c']
+      },
+      left: 'left',
+      bottom: '10%'
     },
     series: [
       {
         name: '发文量',
-        type: 'bar',
-        data: regionRankData.value.map(item => item.count),
+        type: 'map',
+        map: 'china',
+        roam: true,
         itemStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#83bff6' },
-            { offset: 0.5, color: '#188df0' },
-            { offset: 1, color: '#188df0' }
-          ])
+          areaColor: '#f3f3f3',
+          borderColor: '#999'
         },
         emphasis: {
+          label: {
+            show: true,
+            color: '#000'
+          },
           itemStyle: {
-            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#2378f7' },
-              { offset: 0.7, color: '#2378f7' },
-              { offset: 1, color: '#83bff6' }
-            ])
+            areaColor: '#ffd700'
           }
-        }
+        },
+        data: mapData
       }
     ]
   }
@@ -400,9 +567,12 @@ const initMap = () => {
 
 // 监听标签页切换
 watch(activeTab, (newVal) => {
+  console.log('标签页切换到:', newVal)
   if (newVal === 'statistics' && hasSearched.value) {
+    console.log('切换到统计分析，准备初始化地图')
+    console.log('regionChartData.value:', regionChartData.value)
     nextTick(() => {
-      initMap()
+      initMap(regionChartData.value)
     })
   }
 })
@@ -428,6 +598,16 @@ const handleReset = () => {
   pageSize.value = 10
   recordsList.value = []
   total.value = 0
+
+  // 重置统计数据
+  statisticsData.value = {
+    totalArticles: 0,
+    sensitiveCount: 0,
+    neutralCount: 0,
+    normalCount: 0
+  }
+  regionRankData.value = []
+  regionChartData.value = []
 }
 
 const handleProcess = () => {
@@ -447,16 +627,32 @@ const handleSubmitProcess = () => {
   showProcessDialog.value = false
 }
 
-const handleDelete = () => {
-  ElMessageBox.confirm('确定要删除这条预警记录吗？', '提示', {
-    confirmButtonText: '确定',
-    cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    ElMessage.success('删除成功')
-  }).catch(() => {
-    ElMessage.info('已取消删除')
-  })
+const handleDelete = async (item) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除"${item.title}"吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    const res = await deleteAlertInfoAPI(item.newsId)
+    if (res.code === 1) {
+      ElMessage.success('删除成功')
+      // 重新加载当前页数据
+      handleFilter()
+    } else {
+      ElMessage.error(res.msg || '删除失败')
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败')
+    }
+  }
 }
 
 // 辅助方法

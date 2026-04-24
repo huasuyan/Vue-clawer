@@ -222,7 +222,11 @@ const fetchData = async () => {
         // 格式化创建时间
         createTime: item.createTime || item.lastTriggerTime || '-'
       }))
-      total.value = alertList.length
+      // 使用 API 返回的 total 和 pageSize
+      total.value = data.total || 0
+      if (data.pageSize) {
+        pageSize.value = data.pageSize
+      }
     } else {
       ElMessage.error(response.msg || '查询失败')
     }
