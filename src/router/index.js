@@ -88,7 +88,7 @@ const routes = [
       {
         path: 'analysis/report-setting',
         component: () => import('@/views/analysis/ReportSetting.vue')
-      }
+      },
     ]
   }
 ]
