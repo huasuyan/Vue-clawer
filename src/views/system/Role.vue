@@ -49,7 +49,7 @@
             <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
             <el-button link type="primary" @click="handleView(row)">查看</el-button>
             <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-            <el-button link type="primary" @click="handleViewUsers(row)">查看用户</el-button>
+            <el-button link type="primary" @click="handleViewUsers(row)">查看绑定用户</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -67,6 +67,83 @@
         />
       </div>
     </div>
+
+    <!-- 查看角色对话框 -->
+    <el-dialog
+      v-model="showViewDialog"
+      title="角色详情"
+      width="700px"
+      :close-on-click-modal="false"
+    >
+      <el-descriptions :column="2" border>
+        <el-descriptions-item label="角色名称">{{ viewData.roleName }}</el-descriptions-item>
+        <el-descriptions-item label="数据权限">{{ viewData.dataScopeText }}</el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="viewData.status === 1 ? 'success' : 'info'">{{ viewData.statusText }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="操作时间">{{ viewData.operateTime }}</el-descriptions-item>
+        <el-descriptions-item label="备注" :span="2">{{ viewData.remark || '—' }}</el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 权限配置展示 -->
+      <div class="view-authority">
+        <div class="view-authority-title">权限配置</div>
+        <div v-for="(permissions, category) in authorityConfig" :key="category" class="authority-category">
+          <div class="category-title">{{ getCategoryName(category) }}</div>
+          <div class="permission-list">
+            <div v-for="(label, key) in permissions" :key="key" class="permission-item">
+              <el-icon v-if="viewData.authority?.[category]?.[key] === 1" class="perm-on">
+                <CircleCheck />
+              </el-icon>
+              <el-icon v-else class="perm-off">
+                <CircleClose />
+              </el-icon>
+              <span>{{ label }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="showViewDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 查看用户对话框 -->
+    <el-dialog
+      v-model="showUsersDialog"
+      :title="`「${currentRoleName}」绑定用户`"
+      width="800px"
+      :close-on-click-modal="false"
+    >
+      <el-table :data="usersTableData" border style="width: 100%" v-loading="usersLoading">
+        <el-table-column prop="username" label="账号" />
+        <el-table-column prop="phone" label="手机号" />
+        <el-table-column prop="deptName" label="部门" />
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="160" />
+      </el-table>
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="usersPagination.page"
+          v-model:page-size="usersPagination.pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="usersPagination.total"
+          layout="total, prev, pager, next, sizes"
+          @size-change="handleUsersSizeChange"
+          @current-change="handleUsersCurrentChange"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="showUsersDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
 
     <!-- 新增/编辑角色对话框 -->
     <el-dialog
@@ -143,7 +220,8 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getRolePageListAPI, deleteRoleAPI, batchDeleteRoleAPI, getAuthorityAPI, addRoleAPI, updateRoleAPI } from '@/api'
+import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { getRolePageListAPI, deleteRoleAPI, batchDeleteRoleAPI, getAuthorityAPI, addRoleAPI, updateRoleAPI, getRoleUserListAPI } from '@/api'
 
 // 搜索表单
 const searchForm = ref({
@@ -165,6 +243,22 @@ const showRoleDialog = ref(false)
 const isEditMode = ref(false)
 const submitting = ref(false)
 const roleFormRef = ref(null)
+
+// 查看对话框相关
+const showViewDialog = ref(false)
+const viewData = ref({})
+
+// 查看用户对话框相关
+const showUsersDialog = ref(false)
+const currentRoleName = ref('')
+const currentRoleId = ref(null)
+const usersLoading = ref(false)
+const usersTableData = ref([])
+const usersPagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
 
 const roleForm = ref({
   roleName: '',
@@ -379,7 +473,34 @@ const handleEdit = (row) => {
 
 // 查看
 const handleView = (row) => {
-  ElMessage.info(`查看角色: ${row.roleName}`)
+  // 仿照编辑逻辑，以 authorityConfig 为基准解析 row.authority
+  let parsedAuthority = initAuthorityForm()
+  if (row.authority) {
+    try {
+      const rawAuthority = typeof row.authority === 'string'
+        ? JSON.parse(row.authority)
+        : row.authority
+      Object.keys(authorityConfig.value).forEach(category => {
+        parsedAuthority[category] = {}
+        Object.keys(authorityConfig.value[category]).forEach(key => {
+          parsedAuthority[category][key] = rawAuthority[category]?.[key] ?? 0
+        })
+      })
+    } catch {
+      console.warn('authority 解析失败，使用默认值')
+    }
+  }
+
+  viewData.value = {
+    roleName: row.roleName,
+    dataScopeText: row.dataScopeText,
+    status: row.status,
+    statusText: row.statusText,
+    remark: row.remark || '',
+    operateTime: row.operateTime,
+    authority: parsedAuthority
+  }
+  showViewDialog.value = true
 }
 
 // 删除
@@ -404,9 +525,46 @@ const handleDelete = (row) => {
   }).catch(() => {})
 }
 
+// 加载用户列表
+const loadUsersData = async () => {
+  usersLoading.value = true
+  try {
+    const res = await getRoleUserListAPI({
+      roleId: currentRoleId.value,
+      pageNum: usersPagination.value.page,
+      pageSize: usersPagination.value.pageSize
+    })
+    if (res.code === 1) {
+      usersTableData.value = res.data.list || []
+      usersPagination.value.total = res.data.total || 0
+    } else {
+      ElMessage.error(res.msg || '获取用户列表失败')
+    }
+  } catch (err) {
+    ElMessage.error('网络异常，请重试')
+    console.error(err)
+  } finally {
+    usersLoading.value = false
+  }
+}
+
 // 查看用户
 const handleViewUsers = (row) => {
-  ElMessage.info(`查看角色 ${row.roleName} 的用户列表`)
+  currentRoleId.value = row.roleId
+  currentRoleName.value = row.roleName
+  usersPagination.value = { page: 1, pageSize: 10, total: 0 }
+  showUsersDialog.value = true
+  loadUsersData()
+}
+
+// 查看用户分页变化
+const handleUsersSizeChange = (val) => {
+  usersPagination.value.pageSize = val
+  loadUsersData()
+}
+const handleUsersCurrentChange = (val) => {
+  usersPagination.value.page = val
+  loadUsersData()
 }
 
 // 分页变化
@@ -493,6 +651,41 @@ onMounted(() => {
 
 .permission-list .el-checkbox {
   margin: 0;
+}
+
+.view-authority {
+  margin-top: 20px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 16px;
+  background: #f5f7fa;
+}
+
+.view-authority-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.permission-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #303133;
+}
+
+.perm-on {
+  color: #67c23a;
+  font-size: 16px;
+}
+
+.perm-off {
+  color: #c0c4cc;
+  font-size: 16px;
 }
 
 .pagination {

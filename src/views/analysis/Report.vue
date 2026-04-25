@@ -110,9 +110,22 @@
             <div class="section-content">{{ currentReport.emotionAnalysis }}</div>
           </div>
 
-          <div class="section" v-if="currentReport.regionDistribution">
+          <div class="section" v-if="currentReport.regionDistributionList?.length">
             <h4>地域分布</h4>
-            <div class="section-content">{{ currentReport.regionDistribution }}</div>
+            <div class="region-section">
+              <div id="reportRegionMap" class="report-map-container"></div>
+              <div class="region-rank-table">
+                <el-table :data="currentReport.regionDistributionList" border size="small" max-height="360">
+                  <el-table-column prop="rank" label="排名" width="55" align="center" />
+                  <el-table-column prop="name" label="地域" min-width="120" />
+                  <el-table-column prop="value" label="发文量" width="75" align="center" />
+                  <el-table-column prop="percent" label="占比" width="85" align="center" />
+                </el-table>
+              </div>
+            </div>
+            <div v-if="currentReport.regionDistribution" class="region-description">
+              {{ currentReport.regionDistribution }}
+            </div>
           </div>
 
           <div class="section" v-if="currentReport.hotAnalysisWords">
@@ -157,9 +170,50 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getReportResultListAPI, getReportDetailAPI, editReportResultAPI, deleteReportResultAPI } from '@/api/index'
+import * as echarts from 'echarts'
+import chinaJson from '@/assets/china.json'
+
+let reportMapChart = null
+
+// 与 WarningRecords 保持一致的地级市→省份映射表
+const cityToProvinceMap = {
+  '北京': '北京市', '北京市': '北京市',
+  '上海': '上海市', '上海市': '上海市',
+  '天津': '天津市', '天津市': '天津市',
+  '重庆': '重庆市', '重庆市': '重庆市',
+  '北碚': '重庆市', '北碚区': '重庆市', '重庆市北碚区': '重庆市',
+  '石家庄': '河北省', '唐山': '河北省', '秦皇岛': '河北省', '邯郸': '河北省', '邢台': '河北省', '保定': '河北省', '张家口': '河北省', '承德': '河北省', '沧州': '河北省', '廊坊': '河北省', '衡水': '河北省',
+  '太原': '山西省', '大同': '山西省', '阳泉': '山西省', '长治': '山西省', '晋城': '山西省', '朔州': '山西省', '晋中': '山西省', '运城': '山西省', '忻州': '山西省', '临汾': '山西省', '吕梁': '山西省',
+  '呼和浩特': '内蒙古自治区', '包头': '内蒙古自治区', '乌海': '内蒙古自治区', '赤峰': '内蒙古自治区', '通辽': '内蒙古自治区', '鄂尔多斯': '内蒙古自治区', '呼伦贝尔': '内蒙古自治区', '巴彦淖尔': '内蒙古自治区', '乌兰察布': '内蒙古自治区',
+  '沈阳': '辽宁省', '大连': '辽宁省', '鞍山': '辽宁省', '抚顺': '辽宁省', '本溪': '辽宁省', '丹东': '辽宁省', '锦州': '辽宁省', '营口': '辽宁省', '阜新': '辽宁省', '辽阳': '辽宁省', '盘锦': '辽宁省', '铁岭': '辽宁省', '朝阳': '辽宁省', '葫芦岛': '辽宁省',
+  '长春': '吉林省', '吉林': '吉林省', '四平': '吉林省', '辽源': '吉林省', '通化': '吉林省', '白山': '吉林省', '松原': '吉林省', '白城': '吉林省',
+  '哈尔滨': '黑龙江省', '齐齐哈尔': '黑龙江省', '鸡西': '黑龙江省', '鹤岗': '黑龙江省', '双鸭山': '黑龙江省', '大庆': '黑龙江省', '伊春': '黑龙江省', '佳木斯': '黑龙江省', '七台河': '黑龙江省', '牡丹江': '黑龙江省', '黑河': '黑龙江省', '绥化': '黑龙江省',
+  '南京': '江苏省', '无锡': '江苏省', '徐州': '江苏省', '常州': '江苏省', '苏州': '江苏省', '南通': '江苏省', '连云港': '江苏省', '淮安': '江苏省', '盐城': '江苏省', '扬州': '江苏省', '镇江': '江苏省', '泰州': '江苏省', '宿迁': '江苏省',
+  '杭州': '浙江省', '宁波': '浙江省', '温州': '浙江省', '嘉兴': '浙江省', '湖州': '浙江省', '绍兴': '浙江省', '金华': '浙江省', '衢州': '浙江省', '舟山': '浙江省', '台州': '浙江省', '丽水': '浙江省',
+  '合肥': '安徽省', '芜湖': '安徽省', '蚌埠': '安徽省', '淮南': '安徽省', '马鞍山': '安徽省', '淮北': '安徽省', '铜陵': '安徽省', '安庆': '安徽省', '黄山': '安徽省', '滁州': '安徽省', '阜阳': '安徽省', '宿州': '安徽省', '六安': '安徽省', '亳州': '安徽省', '池州': '安徽省', '宣城': '安徽省',
+  '福州': '福建省', '厦门': '福建省', '莆田': '福建省', '三明': '福建省', '泉州': '福建省', '漳州': '福建省', '南平': '福建省', '龙岩': '福建省', '宁德': '福建省',
+  '南昌': '江西省', '景德镇': '江西省', '萍乡': '江西省', '九江': '江西省', '新余': '江西省', '鹰潭': '江西省', '赣州': '江西省', '吉安': '江西省', '宜春': '江西省', '抚州': '江西省', '上饶': '江西省',
+  '济南': '山东省', '青岛': '山东省', '淄博': '山东省', '枣庄': '山东省', '东营': '山东省', '烟台': '山东省', '潍坊': '山东省', '济宁': '山东省', '泰安': '山东省', '威海': '山东省', '日照': '山东省', '临沂': '山东省', '德州': '山东省', '聊城': '山东省', '滨州': '山东省', '菏泽': '山东省',
+  '郑州': '河南省', '开封': '河南省', '洛阳': '河南省', '平顶山': '河南省', '安阳': '河南省', '鹤壁': '河南省', '新乡': '河南省', '焦作': '河南省', '濮阳': '河南省', '许昌': '河南省', '漯河': '河南省', '三门峡': '河南省', '南阳': '河南省', '商丘': '河南省', '信阳': '河南省', '周口': '河南省', '驻马店': '河南省',
+  '武汉': '湖北省', '黄石': '湖北省', '十堰': '湖北省', '宜昌': '湖北省', '襄阳': '湖北省', '鄂州': '湖北省', '荆门': '湖北省', '孝感': '湖北省', '荆州': '湖北省', '黄冈': '湖北省', '咸宁': '湖北省', '随州': '湖北省',
+  '长沙': '湖南省', '株洲': '湖南省', '湘潭': '湖南省', '衡阳': '湖南省', '邵阳': '湖南省', '岳阳': '湖南省', '常德': '湖南省', '张家界': '湖南省', '益阳': '湖南省', '郴州': '湖南省', '永州': '湖南省', '怀化': '湖南省', '娄底': '湖南省',
+  '广州': '广东省', '韶关': '广东省', '深圳': '广东省', '珠海': '广东省', '汕头': '广东省', '佛山': '广东省', '江门': '广东省', '湛江': '广东省', '茂名': '广东省', '肇庆': '广东省', '惠州': '广东省', '梅州': '广东省', '汕尾': '广东省', '河源': '广东省', '阳江': '广东省', '清远': '广东省', '东莞': '广东省', '中山': '广东省', '潮州': '广东省', '揭州': '广东省', '云浮': '广东省',
+  '南宁': '广西壮族自治区', '柳州': '广西壮族自治区', '桂林': '广西壮族自治区', '梧州': '广西壮族自治区', '北海': '广西壮族自治区', '防城港': '广西壮族自治区', '钦州': '广西壮族自治区', '贵港': '广西壮族自治区', '玉林': '广西壮族自治区', '百色': '广西壮族自治区', '贺州': '广西壮族自治区', '河池': '广西壮族自治区', '来宾': '广西壮族自治区', '崇左': '广西壮族自治区',
+  '海口': '海南省', '三亚': '海南省',
+  '成都': '四川省', '自贡': '四川省', '攀枝花': '四川省', '泸州': '四川省', '德阳': '四川省', '绵阳': '四川省', '广元': '四川省', '遂宁': '四川省', '内江': '四川省', '乐山': '四川省', '南充': '四川省', '眉山': '四川省', '宜宾': '四川省', '广安': '四川省', '达州': '四川省', '雅安': '四川省', '巴中': '四川省', '资阳': '四川省',
+  '贵阳': '贵州省', '六盘水': '贵州省', '遵义': '贵州省', '安顺': '贵州省', '毕节': '贵州省', '铜仁': '贵州省',
+  '昆明': '云南省', '曲靖': '云南省', '玉溪': '云南省', '保山': '云南省', '昭通': '云南省', '丽江': '云南省', '普洱': '云南省', '临沧': '云南省',
+  '拉萨': '西藏自治区',
+  '西安': '陕西省', '铜川': '陕西省', '宝鸡': '陕西省', '咸阳': '陕西省', '渭南': '陕西省', '延安': '陕西省', '汉中': '陕西省', '榆林': '陕西省', '安康': '陕西省', '商洛': '陕西省',
+  '兰州': '甘肃省', '嘉峪关': '甘肃省', '金昌': '甘肃省', '白银': '甘肃省', '天水': '甘肃省', '武威': '甘肃省', '张掖': '甘肃省', '平凉': '甘肃省', '酒泉': '甘肃省', '庆阳': '甘肃省', '定西': '甘肃省', '陇南': '甘肃省',
+  '西宁': '青海省',
+  '银川': '宁夏回族自治区', '石嘴山': '宁夏回族自治区', '吴忠': '宁夏回族自治区', '固原': '宁夏回族自治区', '中卫': '宁夏回族自治区',
+  '乌鲁木齐': '新疆维吾尔自治区', '克拉玛依': '新疆维吾尔自治区', '吐鲁番': '新疆维吾尔自治区', '哈密': '新疆维吾尔自治区',
+  '香港': '香港特别行政区', '澳门': '澳门特别行政区', '台北': '台湾省', '台湾': '台湾省'
+}
 
 const searchForm = ref({
   name: '',
@@ -334,9 +388,14 @@ const handleView = async (row) => {
         sourceMediaAnalysis: report.sourceMediaAnalysis || '',
         emotionAnalysis: report.emotionAnalysis || '',
         regionDistribution: report.regionDistribution || '',
+        regionDistributionList: parseRegionList(report.regionDistributionList),
         hotAnalysisWords: report.hotAnalysisWords || '',
         hotInformation: report.hotInformation || '',
         disposalOpinions: report.disposalOpinions || ''
+      }
+      // 有地域数据时初始化热力图
+      if (currentReport.value.regionDistributionList.length) {
+        nextTick(() => initReportMap(currentReport.value.regionDistributionList))
       }
     } else {
       ElMessage.error(res.msg || '获取报告详情失败')
@@ -353,6 +412,78 @@ const handleView = async (row) => {
 
 const handleDownloadReport = () => {
   ElMessage.success(`正在下载：${currentReport.value.reportName}`)
+}
+
+// 解析 regionDistributionList（兼容双重转义字符串、普通字符串、数组）
+const parseRegionList = (raw) => {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    // 双重转义：第一次解析结果仍是字符串时再解析一次
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    console.warn('regionDistributionList 解析失败:', e)
+    return []
+  }
+}
+
+// 初始化报告地域热力图（仿照 WarningRecords.initMap）
+const initReportMap = (list) => {
+  const mapDom = document.getElementById('reportRegionMap')
+  if (!mapDom) return
+
+  if (reportMapChart) reportMapChart.dispose()
+  reportMapChart = echarts.init(mapDom)
+  echarts.registerMap('china', chinaJson)
+
+  // 聚合：将地级市/区名映射到省级，相同省份累加
+  const regionDataMap = {}
+  list.forEach(item => {
+    const mappedName = cityToProvinceMap[item.name] || item.name
+    regionDataMap[mappedName] = (regionDataMap[mappedName] || 0) + (item.value || 0)
+  })
+
+  const mapData = Object.entries(regionDataMap).map(([name, value]) => ({ name, value }))
+  const validData = mapData.filter(d => d.value > 0)
+  if (!validData.length) {
+    ElMessage.warning('暂无有效的地域数据')
+    return
+  }
+
+  const maxValue = Math.max(...validData.map(d => d.value), 1)
+
+  reportMapChart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: ({ name, value }) => `${name}<br/>发文量：${value ?? 0}`
+    },
+    visualMap: {
+      min: 0,
+      max: maxValue,
+      text: ['高', '低'],
+      realtime: false,
+      calculable: true,
+      inRange: {
+        color: ['#ffebee', '#ffcdd2', '#ef9a9a', '#e57373', '#ef5350', '#f44336', '#e53935', '#d32f2f', '#c62828', '#b71c1c']
+      },
+      left: 'left',
+      bottom: '10%'
+    },
+    series: [{
+      name: '发文量',
+      type: 'map',
+      map: 'china',
+      roam: true,
+      itemStyle: { areaColor: '#f3f3f3', borderColor: '#999' },
+      emphasis: {
+        label: { show: true, color: '#000' },
+        itemStyle: { areaColor: '#ffd700' }
+      },
+      data: mapData
+    }]
+  })
 }
 
 // 编辑处置意见
@@ -574,7 +705,33 @@ onMounted(() => {
   line-height: 1.8;
   font-size: 14px;
   white-space: pre-wrap;
-  word-break: break-word;
+}
+
+.region-section {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.report-map-container {
+  flex: 1;
+  height: 360px;
+  min-width: 0;
+}
+
+.region-rank-table {
+  width: 360px;
+  flex-shrink: 0;
+}
+
+.region-description {
+  margin-top: 15px;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  line-height: 1.6;
+  color: #606266;
+  font-size: 14px;
 }
 
 .report-content h3 {

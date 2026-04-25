@@ -336,6 +336,24 @@ export const deleteRoleAPI = (roleId) => {
   })
 }
 
+// 查看角色详情
+export const getRoleDetailAPI = (roleId) => {
+  return request({
+    url: '/api/v1/role/detail',
+    method: 'get',
+    params: { roleId }
+  })
+}
+
+// 查看角色下用户列表
+export const getRoleUserListAPI = (data) => {
+  return request({
+    url: '/api/v1/role/userList',
+    method: 'post',
+    data
+  })
+}
+
 // 批量删除角色
 export const batchDeleteRoleAPI = (data) => {
   return request({
