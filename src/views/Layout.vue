@@ -355,6 +355,25 @@ const logout = async() => {
   color: #333;
   padding: 20px 0;
   border-right: 1px solid #f0f0f0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.aside::-webkit-scrollbar {
+  width: 6px;
+}
+
+.aside::-webkit-scrollbar-thumb {
+  background: #d0d0d0;
+  border-radius: 3px;
+}
+
+.aside::-webkit-scrollbar-thumb:hover {
+  background: #b0b0b0;
+}
+
+.aside::-webkit-scrollbar-track {
+  background: transparent;
 }
 .aside a {
   display: block;

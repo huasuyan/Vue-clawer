@@ -212,11 +212,118 @@ export const deleteAlertInfoAPI = (newsId) => {
 }
 
 // 获取部门树
-export const getDeptTreeAPI = (deptId) => {
+export const getDeptTreeAPI = (params) => {
   return request({
     url: '/api/v1/dept/tree',
     method: 'get',
+    params
+  })
+}
+
+// 搜索部门树
+export const searchDeptTreeAPI = (searchName) => {
+  return request({
+    url: '/api/v1/dept/searchTree',
+    method: 'get',
+    params: { searchName }
+  })
+}
+
+// 新增顶级部门（市级局）
+export const addTopDeptAPI = (data) => {
+  return request({
+    url: '/api/v1/dept/addTop',
+    method: 'post',
+    data
+  })
+}
+
+// 新增下级部门
+export const addChildDeptAPI = (data) => {
+  return request({
+    url: '/api/v1/dept/addChild',
+    method: 'post',
+    data
+  })
+}
+
+// 更新部门信息
+export const updateDeptAPI = (data) => {
+  return request({
+    url: '/api/v1/dept/update',
+    method: 'post',
+    data
+  })
+}
+
+// 删除部门
+export const deleteDeptAPI = (deptId) => {
+  return request({
+    url: '/api/v1/dept/delete',
+    method: 'get',
     params: { deptId }
+  })
+}
+
+// 用户条件分页查询
+export const getDeptUserListAPI = (params) => {
+  return request({
+    url: '/api/v1/deptUser/list',
+    method: 'get',
+    params
+  })
+}
+
+// 新增用户
+export const addDeptUserAPI = (data) => {
+  return request({
+    url: '/api/v1/deptUser/add',
+    method: 'post',
+    data
+  })
+}
+
+// 修改用户
+export const updateDeptUserAPI = (data) => {
+  return request({
+    url: '/api/v1/deptUser/update',
+    method: 'post',
+    data
+  })
+}
+
+// 获取用户详情
+export const getDeptUserDetailAPI = (userId) => {
+  return request({
+    url: '/api/v1/deptUser/detail',
+    method: 'get',
+    params: { userId }
+  })
+}
+
+// 获取角色下拉列表
+export const getRoleDropdownListAPI = () => {
+  return request({
+    url: '/api/v1/role/dropdownList',
+    method: 'get'
+  })
+}
+
+// 删除用户
+export const deleteDeptUserAPI = (userId) => {
+  return request({
+    url: '/api/v1/deptUser/delete',
+    method: 'get',
+    params: { userId }
+  })
+}
+
+// 角色条件分页查询
+export const getRolePageListAPI = (data) => {
+  return request({
+    url: '/api/v1/role/pageList',
+    method: 'post',
+    data
   })
 }
 
@@ -253,5 +360,41 @@ export const deleteReportAPI = (specialReportId) => {
     url: '/api/v1/specialReport/delete',
     method: 'get',
     params: { specialReportId }
+  })
+}
+
+// 查询舆情报告结果列表
+export const getReportResultListAPI = (data) => {
+  return request({
+    url: '/api/v1/reportResult/pageList',
+    method: 'post',
+    data
+  })
+}
+
+// 查询舆情报告详情
+export const getReportDetailAPI = (reportId) => {
+  return request({
+    url: '/api/v1/reportResult/detail',
+    method: 'get',
+    params: { reportId }
+  })
+}
+
+// 编辑舆情报告
+export const editReportResultAPI = (data) => {
+  return request({
+    url: '/api/v1/reportResult/edit',
+    method: 'post',
+    data
+  })
+}
+
+// 删除舆情报告
+export const deleteReportResultAPI = (reportId) => {
+  return request({
+    url: '/api/v1/reportResult/delete',
+    method: 'get',
+    params: { reportId }
   })
 }

@@ -13,8 +13,8 @@
           </el-form-item>
           <el-form-item label="状态:">
             <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 200px">
-              <el-option label="启用" value="1" />
-              <el-option label="禁用" value="0" />
+              <el-option label="启用" :value="1" />
+              <el-option label="禁用" :value="0" />
             </el-select>
           </el-form-item>
           <el-form-item>
@@ -34,11 +34,15 @@
       <el-table :data="tableData" border style="width: 100%">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="roleName" label="角色名称" />
-        <el-table-column prop="rolePermission" label="角色权限" />
-        <el-table-column prop="dataPermission" label="数据权限" />
+        <el-table-column prop="dataScopeText" label="数据权限" />
         <el-table-column prop="remark" label="备注" />
-        <el-table-column prop="status" label="状态" />
-        <el-table-column prop="operator" label="操作人" />
+        <el-table-column label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 1 ? 'success' : 'info'">
+              {{ row.statusText }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="operateTime" label="操作时间" width="160" />
         <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
@@ -67,8 +71,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { getRolePageListAPI } from '@/api'
 
 // 搜索表单
 const searchForm = ref({
@@ -77,19 +82,13 @@ const searchForm = ref({
 })
 
 // 表格数据
-const tableData = ref([
-  { roleName: '坐办', rolePermission: '舆情监测', dataPermission: '本处室', remark: '吕田', status: '启用', operator: '李四', operateTime: '2023-11-11 10:00:00' },
-  { roleName: '舆门领导', rolePermission: '舆情监测', dataPermission: '本处室', remark: '吕田', status: '启用', operator: '李四', operateTime: '2023-11-11 10:00:00' },
-  { roleName: '局领导', rolePermission: '舆情监测', dataPermission: '全单位', remark: '吕田', status: '启用', operator: '李四', operateTime: '2023-11-11 10:00:00' },
-  { roleName: '系统管理员', rolePermission: '舆情监测', dataPermission: '本系统', remark: '吕田', status: '启用', operator: '李四', operateTime: '2023-11-11 10:00:00' },
-  { roleName: '平台管理员', rolePermission: '舆情监测', dataPermission: '本系统', remark: '吕田', status: '启用', operator: '李四', operateTime: '2023-11-11 10:00:00' }
-])
+const tableData = ref([])
 
 // 分页
 const pagination = ref({
   page: 1,
   pageSize: 10,
-  total: 10
+  total: 0
 })
 
 // 查询
@@ -104,13 +103,30 @@ const handleReset = () => {
     roleName: '',
     status: ''
   }
+  pagination.value.page = 1
   loadTableData()
 }
 
 // 加载表格数据
-const loadTableData = () => {
-  // TODO: 调用API获取数据
-  console.log('加载数据', searchForm.value, pagination.value)
+const loadTableData = async () => {
+  try {
+    const res = await getRolePageListAPI({
+      pageNum: pagination.value.page,
+      pageSize: pagination.value.pageSize,
+      roleName: searchForm.value.roleName,
+      status: searchForm.value.status
+    })
+
+    if (res.code === 1) {
+      tableData.value = res.data.list || []
+      pagination.value.total = res.data.total || 0
+    } else {
+      ElMessage.error(res.msg || '获取角色列表失败')
+    }
+  } catch (err) {
+    ElMessage.error('网络异常，请重试')
+    console.error(err)
+  }
 }
 
 // 新增角色
@@ -160,6 +176,11 @@ const handleCurrentChange = (val) => {
   pagination.value.page = val
   loadTableData()
 }
+
+// 页面加载时获取数据
+onMounted(() => {
+  loadTableData()
+})
 </script>
 
 <style scoped>
