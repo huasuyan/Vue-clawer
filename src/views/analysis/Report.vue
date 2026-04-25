@@ -128,14 +128,40 @@
             </div>
           </div>
 
-          <div class="section" v-if="currentReport.hotAnalysisWords">
+          <div class="section" v-if="currentReport.hotAnalysisWords || currentReport.hotAnalysisWordsList?.length">
             <h4>热词分析</h4>
-            <div class="section-content">{{ currentReport.hotAnalysisWords }}</div>
+            <div v-if="currentReport.hotAnalysisWordsList?.length" class="hotwords-section">
+              <div ref="hotWordsCloudRef" class="hotwords-cloud"></div>
+              <div class="hotwords-table">
+                <el-table :data="currentReport.hotAnalysisWordsList.slice(0, 10)" border size="small" max-height="360">
+                  <el-table-column prop="rank" label="排名" width="60" align="center">
+                    <template #default="{ $index }">{{ $index + 1 }}</template>
+                  </el-table-column>
+                  <el-table-column prop="name" label="名称" min-width="120" />
+                  <el-table-column prop="value" label="发文量" width="80" align="center" />
+                  <el-table-column label="占比" width="90" align="center">
+                    <template #default="{ row }">{{ calculatePercent(row.value) }}</template>
+                  </el-table-column>
+                </el-table>
+              </div>
+            </div>
+            <div v-if="currentReport.hotAnalysisWordsList?.length" class="hotwords-summary">
+              {{ generateHotWordsSummary(currentReport.hotAnalysisWordsList) }}
+            </div>
           </div>
 
-          <div class="section" v-if="currentReport.hotInformation">
-            <h4>热门信息</h4>
-            <div class="section-content">{{ currentReport.hotInformation }}</div>
+          <div class="section" v-if="currentReport.hotInformationList?.length">
+            <div class="section-header">
+              <h4>热门信息</h4>
+            </div>
+            <el-table :data="currentReport.hotInformationList" border size="small">
+              <el-table-column prop="rank" label="排名" width="60" align="center" />
+              <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
+              <el-table-column prop="platform" label="发布平台" width="100" align="center" />
+              <el-table-column prop="account" label="发文账号" width="120" align="center" />
+              <el-table-column prop="type" label="信息类型" width="100" align="center" />
+              <el-table-column prop="publishTime" label="发文时间" width="160" align="center" />
+            </el-table>
           </div>
 
           <div class="section" v-if="currentReport.disposalOpinions !== undefined">
@@ -174,9 +200,13 @@ import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getReportResultListAPI, getReportDetailAPI, editReportResultAPI, deleteReportResultAPI } from '@/api/index'
 import * as echarts from 'echarts'
+import 'echarts-wordcloud'
 import chinaJson from '@/assets/china.json'
+import html2canvas from 'html2canvas'
+import jsPDF from 'jspdf'
 
 let reportMapChart = null
+let hotWordsChart = null
 
 // 与 WarningRecords 保持一致的地级市→省份映射表
 const cityToProvinceMap = {
@@ -232,6 +262,7 @@ const reportLoading = ref(false)
 const editingDisposal = ref(false)
 const disposalOpinionsEdit = ref('')
 const savingDisposal = ref(false)
+const hotWordsCloudRef = ref(null)
 
 // 格式化时间
 const formatTime = (time) => {
@@ -390,12 +421,18 @@ const handleView = async (row) => {
         regionDistribution: report.regionDistribution || '',
         regionDistributionList: parseRegionList(report.regionDistributionList),
         hotAnalysisWords: report.hotAnalysisWords || '',
+        hotAnalysisWordsList: parseHotWordsList(report.hotAnalysisWordsList),
         hotInformation: report.hotInformation || '',
+        hotInformationList: parseHotInformationList(report.hotInformationList) || parseHotInformationText(report.hotInformation),
         disposalOpinions: report.disposalOpinions || ''
       }
       // 有地域数据时初始化热力图
       if (currentReport.value.regionDistributionList.length) {
         nextTick(() => initReportMap(currentReport.value.regionDistributionList))
+      }
+      // 有热词数据时初始化词云图
+      if (currentReport.value.hotAnalysisWordsList.length) {
+        nextTick(() => initHotWordsCloud(currentReport.value.hotAnalysisWordsList))
       }
     } else {
       ElMessage.error(res.msg || '获取报告详情失败')
@@ -410,8 +447,66 @@ const handleView = async (row) => {
   }
 }
 
-const handleDownloadReport = () => {
-  ElMessage.success(`正在下载：${currentReport.value.reportName}`)
+const handleDownloadReport = async () => {
+  try {
+    ElMessage.info('正在生成 PDF，请稍候...')
+
+    // 获取报告内容区域
+    const reportContent = document.querySelector('.report-content')
+    if (!reportContent) {
+      ElMessage.error('未找到报告内容')
+      return
+    }
+
+    // 临时隐藏所有按钮和编辑操作
+    const downloadBtn = reportContent.querySelector('.report-header .el-button')
+    const editBtns = reportContent.querySelectorAll('.section-header .el-button, .edit-actions')
+
+    if (downloadBtn) downloadBtn.style.display = 'none'
+    editBtns.forEach(btn => { btn.style.display = 'none' })
+
+    // 使用 html2canvas 将内容转换为图片
+    const canvas = await html2canvas(reportContent, {
+      scale: 2, // 提高清晰度
+      useCORS: true,
+      logging: false,
+      backgroundColor: '#ffffff'
+    })
+
+    // 恢复按钮显示
+    if (downloadBtn) downloadBtn.style.display = ''
+    editBtns.forEach(btn => { btn.style.display = '' })
+
+    const imgData = canvas.toDataURL('image/png')
+    const imgWidth = 190 // A4 宽度（mm）- 左右边距
+    const pageHeight = 277 // A4 高度（mm）- 上下边距
+    const imgHeight = (canvas.height * imgWidth) / canvas.width
+    let heightLeft = imgHeight
+
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    let position = 10 // 顶部边距
+
+    // 添加第一页
+    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
+    heightLeft -= pageHeight
+
+    // 如果内容超过一页，添加更多页
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight + 10
+      pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight)
+      heightLeft -= pageHeight
+    }
+
+    // 下载 PDF
+    const fileName = `${currentReport.value.reportName || '报告'}_${new Date().getTime()}.pdf`
+    pdf.save(fileName)
+
+    ElMessage.success('PDF 下载成功')
+  } catch (error) {
+    console.error('生成 PDF 失败:', error)
+    ElMessage.error('生成 PDF 失败，请重试')
+  }
 }
 
 // 解析 regionDistributionList（兼容双重转义字符串、普通字符串、数组）
@@ -427,6 +522,87 @@ const parseRegionList = (raw) => {
     console.warn('regionDistributionList 解析失败:', e)
     return []
   }
+}
+
+// 解析 hotAnalysisWordsList（兼容双重转义字符串、普通字符串、数组）
+const parseHotWordsList = (raw) => {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    // 双重转义：第一次解析结果仍是字符串时再解析一次
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    console.warn('hotAnalysisWordsList 解析失败:', e)
+    return []
+  }
+}
+
+// 解析 hotInformationList（兼容双重转义字符串、普通字符串、数组）
+const parseHotInformationList = (raw) => {
+  console.log('hotInformationList 原始数据:', raw)
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw
+  try {
+    let parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    // 双重转义：第一次解析结果仍是字符串时再解析一次
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed)
+    console.log('hotInformationList 解析结果:', parsed)
+    return Array.isArray(parsed) ? parsed : []
+  } catch (e) {
+    console.warn('hotInformationList 解析失败:', e)
+    return []
+  }
+}
+
+// 从 hotInformation 文本中解析出结构化数据
+const parseHotInformationText = (text) => {
+  if (!text) return []
+
+  const lines = text.split('\n').filter(line => line.trim())
+  const result = []
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+    // 匹配序号开头的行，如 "1. 标题"
+    const match = line.match(/^(\d+)\.\s+(.+)/)
+    if (match) {
+      const rank = match[1]
+      const title = match[2]
+
+      // 读取下一行的详细信息
+      if (i + 1 < lines.length) {
+        const detailLine = lines[i + 1].trim()
+        const platformMatch = detailLine.match(/平台：([^|]+)/)
+        const accountMatch = detailLine.match(/发布者：([^|]+)/)
+        const emotionMatch = detailLine.match(/情绪：([^|]+)/)
+
+        // 读取第三行的时间和评论数
+        let publishTime = ''
+        let comments = ''
+        if (i + 2 < lines.length) {
+          const timeLine = lines[i + 2].trim()
+          const timeMatch = timeLine.match(/时间：([^|]+)/)
+          const commentsMatch = timeLine.match(/评论数：(\d+)/)
+          if (timeMatch) publishTime = timeMatch[1].trim()
+          if (commentsMatch) comments = commentsMatch[1]
+        }
+
+        result.push({
+          rank: parseInt(rank),
+          title: title,
+          platform: platformMatch ? platformMatch[1].trim() : '',
+          account: accountMatch ? accountMatch[1].trim() : '',
+          type: emotionMatch ? emotionMatch[1].trim() : '',
+          publishTime: publishTime,
+          comments: comments
+        })
+      }
+    }
+  }
+
+  return result
 }
 
 // 初始化报告地域热力图（仿照 WarningRecords.initMap）
@@ -486,6 +662,66 @@ const initReportMap = (list) => {
   })
 }
 
+// 初始化热词词云图
+const initHotWordsCloud = (list) => {
+  if (!hotWordsCloudRef.value || !list.length) return
+
+  if (hotWordsChart) hotWordsChart.dispose()
+  hotWordsChart = echarts.init(hotWordsCloudRef.value)
+
+  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
+
+  hotWordsChart.setOption({
+    series: [{
+      type: 'wordCloud',
+      shape: 'circle',
+      sizeRange: [14, 50],
+      rotationRange: [-30, 30],
+      rotationStep: 15,
+      gridSize: 8,
+      left: 'center',
+      top: 'center',
+      right: null,
+      bottom: null,
+      width: '90%',
+      height: '90%',
+      drawOutOfBound: false,
+      shrinkToFit: true,
+      textStyle: {
+        color: () => colors[Math.floor(Math.random() * colors.length)]
+      },
+      data: list.map(item => ({
+        name: item.name,
+        value: item.value,
+        textStyle: {
+          color: colors[Math.floor(Math.random() * colors.length)]
+        }
+      }))
+    }]
+  })
+}
+
+// 计算热词占比
+const calculatePercent = (value) => {
+  if (!currentReport.value.hotAnalysisWordsList?.length) return '0%'
+  const total = currentReport.value.hotAnalysisWordsList.reduce((sum, item) => sum + (item.value || 0), 0)
+  if (total === 0) return '0%'
+  return ((value / total) * 100).toFixed(2) + '%'
+}
+
+// 生成热词统计摘要
+const generateHotWordsSummary = (list) => {
+  if (!list || !list.length) return ''
+
+  const total = list.reduce((sum, item) => sum + (item.value || 0), 0)
+  const top3 = list.slice(0, 3)
+  const top3Names = top3.map(item => `"${item.name}"`).join('、')
+  const top3Total = top3.reduce((sum, item) => sum + (item.value || 0), 0)
+  const top3Percent = total > 0 ? ((top3Total / total) * 100).toFixed(1) : 0
+
+  return `共检测到 ${list.length} 个热词，总发文量 ${total} 篇。其中热度最高的前三个热词为：${top3Names}，合计占比 ${top3Percent}%。`
+}
+
 // 编辑处置意见
 const handleEditDisposal = () => {
   disposalOpinionsEdit.value = currentReport.value.disposalOpinions
@@ -534,8 +770,24 @@ const handleSaveDisposal = async () => {
   }
 }
 
-const handleDownload = (row) => {
-  ElMessage.success(`正在下载：${row.name}`)
+const handleDownload = async (row) => {
+  try {
+    // 先打开对话框加载报告内容
+    await handleView(row)
+
+    // 等待对话框和内容完全加载
+    await nextTick()
+    await new Promise(resolve => setTimeout(resolve, 500))
+
+    // 调用下载 PDF 功能
+    await handleDownloadReport()
+
+    // 下载完成后关闭对话框
+    showViewDialog.value = false
+  } catch (error) {
+    console.error('下载报告失败:', error)
+    ElMessage.error('下载报告失败')
+  }
 }
 
 const handleDelete = async (row) => {
@@ -726,6 +978,34 @@ onMounted(() => {
 
 .region-description {
   margin-top: 15px;
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  line-height: 1.6;
+  color: #606266;
+  font-size: 14px;
+}
+
+.hotwords-section {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 15px;
+}
+
+.hotwords-cloud {
+  flex: 1;
+  height: 360px;
+  min-width: 0;
+  border-radius: 4px;
+}
+
+.hotwords-table {
+  width: 360px;
+  flex-shrink: 0;
+}
+
+.hotwords-summary {
   padding: 12px;
   background-color: #f5f7fa;
   border-radius: 4px;

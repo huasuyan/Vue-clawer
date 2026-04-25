@@ -17,7 +17,23 @@
       <div class="register-card">
         <h2 class="form-title">用户注册</h2>
 
-        <div class="form-content">
+        <div class="system-notice">
+          <el-alert
+            title="内部系统提示"
+            type="warning"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              本系统为内部系统，暂不开放注册功能。如需使用，请联系系统管理员开通账号。
+            </template>
+          </el-alert>
+          <el-button type="primary" size="large" class="goto-login-button" @click="goToLogin">
+            前往登录
+          </el-button>
+        </div>
+
+        <div class="form-content" style="opacity: 0.5; pointer-events: none;">
           <el-input
             v-model="registerForm.username"
             placeholder="请输入用户名（6-12个字符）"
@@ -81,8 +97,8 @@
             />
           </div>
 
-          <el-button type="primary" size="large" class="register-button" @click="handleRegister">
-            注册
+          <el-button type="primary" size="large" class="register-button" disabled>
+            注册（已禁用）
           </el-button>
 
           <div class="login-tip">
@@ -382,6 +398,33 @@ onMounted(() => {
 
 :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 1px #4a90e2 inset !important;
+}
+
+.system-notice {
+  margin-bottom: 20px;
+}
+
+.system-notice :deep(.el-alert) {
+  background-color: #fef0f0;
+  border: 1px solid #fde2e2;
+  margin-bottom: 15px;
+}
+
+.system-notice :deep(.el-alert__title) {
+  color: #f56c6c;
+  font-weight: 600;
+}
+
+.system-notice :deep(.el-alert__description) {
+  color: #666;
+  line-height: 1.6;
+}
+
+.goto-login-button {
+  width: 100%;
+  font-size: 16px;
+  padding: 12px 0;
+  border-radius: 8px;
 }
 </style>
 
