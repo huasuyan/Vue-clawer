@@ -72,7 +72,7 @@
           </div>
           <div class="info-row">
             <span class="label">数据源</span>
-            <span class="value">{{ item.dataSource || '-' }}</span>
+            <span class="value">{{ item.dataSource === 'integration' ? '综合' : (item.dataSource || '-') }}</span>
           </div>
           <div class="info-row">
             <span class="label">监测地域</span>
@@ -192,12 +192,12 @@
 
         <el-form-item label="目标来源" prop="dataSource">
           <el-select v-model="formData.dataSource" placeholder="请选择目标来源" style="width: 100%">
-            <el-option label="默认" value="default" />
+            <el-option label="默认" value="integration" />
           </el-select>
         </el-form-item>
 
         <!-- 目标来源参数配置 -->
-        <el-form-item label="来源参数" v-if="formData.dataSource === 'default'">
+        <el-form-item label="来源参数" v-if="formData.dataSource === 'integration'">
           <div class="source-params">
             <div class="param-item">
               <span class="param-label">查询倍率：</span>
@@ -311,7 +311,7 @@
 import { ref, computed, onMounted, reactive, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Document, InfoFilled } from '@element-plus/icons-vue'
-import { getReportListAPI, deleteReportAPI, createReportAPI } from '@/api/index'
+import { getReportListAPI, deleteReportAPI, createReportAPI, editReportAPI } from '@/api/index'
 
 // 搜索表单
 const searchForm = ref({
@@ -516,8 +516,111 @@ const handleCurrentChange = () => {
 }
 
 // 编辑
-const handleEdit = () => {
-  ElMessage.info('编辑功能开发中')
+const handleEdit = (item) => {
+  console.log('编辑项原始数据:', item)
+
+  // 解析监测词组
+  let keywordGroups = [{ keywords: [], inputVisible: false, inputValue: '' }]
+  try {
+    console.log('原始 monitorKeywords:', item.monitorKeywords)
+    let monitorKeywords = item.monitorKeywords
+
+    // 如果是字符串，先解析
+    if (typeof monitorKeywords === 'string') {
+      monitorKeywords = JSON.parse(monitorKeywords)
+    }
+
+    console.log('解析后 monitorKeywords:', monitorKeywords)
+
+    if (monitorKeywords && monitorKeywords.keywordGroups && monitorKeywords.keywordGroups.length > 0) {
+      keywordGroups = monitorKeywords.keywordGroups.map(keywords => ({
+        keywords: Array.isArray(keywords) ? keywords : [],
+        inputVisible: false,
+        inputValue: ''
+      }))
+    }
+
+    console.log('最终 keywordGroups:', keywordGroups)
+  } catch (e) {
+    console.error('解析监测词组失败:', e, item.monitorKeywords)
+  }
+
+  // 解析 params
+  let sourceParams = { page: 1, sources: [] }
+  try {
+    if (item.params) {
+      let params = item.params
+      if (typeof params === 'string') {
+        params = JSON.parse(params)
+      }
+      sourceParams = params
+    }
+  } catch (e) {
+    console.error('解析params失败:', e)
+  }
+
+  // 解析 typeParams
+  let dateRange = []
+  let cycle = ''
+  let weekday = null
+  let day = null
+  let time = ''
+
+  try {
+    if (item.typeParams) {
+      console.log('原始 typeParams:', item.typeParams)
+      let typeParams = item.typeParams
+
+      // 如果是字符串，先解析
+      if (typeof typeParams === 'string') {
+        typeParams = JSON.parse(typeParams)
+      }
+
+      console.log('解析后 typeParams:', typeParams)
+      console.log('reportType:', item.reportType)
+
+      if (item.reportType === 1) {
+        // 即时报告
+        if (typeParams.start_date && typeParams.end_date) {
+          dateRange = [typeParams.start_date, typeParams.end_date]
+        }
+      } else if (item.reportType === 2) {
+        // 定时报告
+        cycle = typeParams.cycle || ''
+        time = typeParams.time || ''
+        if (typeParams.weekday !== undefined && typeParams.weekday !== null) {
+          weekday = typeParams.weekday
+        }
+        if (typeParams.day !== undefined && typeParams.day !== null) {
+          day = typeParams.day
+        }
+      }
+
+      console.log('解析后时间参数:', { dateRange, cycle, weekday, day, time })
+    }
+  } catch (e) {
+    console.error('解析typeParams失败:', e, item.typeParams)
+  }
+
+  // 填充表单数据
+  formData.reportName = item.reportName
+  formData.keywordGroups = keywordGroups
+  formData.dataSource = item.dataSource
+  formData.sourceParams = sourceParams
+  formData.monitorRegion = item.monitorRegion || ''
+  formData.reportType = item.reportType
+  formData.dateRange = dateRange
+  formData.cycle = cycle
+  formData.weekday = weekday
+  formData.day = day
+  formData.time = time
+  formData.statusEnabled = item.statusEnabled
+
+  console.log('填充后的表单数据:', JSON.parse(JSON.stringify(formData)))
+
+  // 设置编辑模式
+  editingItem.value = item
+  showAddDialog.value = true
 }
 
 // 删除
@@ -690,15 +793,25 @@ const handleSubmit = async () => {
 
     console.log('提交参数:', params)
 
-    const res = await createReportAPI(params)
+    let res
+    if (editingItem.value) {
+      // 编辑模式：调用编辑接口
+      res = await editReportAPI({
+        ...params,
+        specialReportId: editingItem.value.specialReportId
+      })
+    } else {
+      // 新增模式：调用创建接口
+      res = await createReportAPI(params)
+    }
 
     if (res.code === 1) {
-      ElMessage.success('创建成功')
+      ElMessage.success(editingItem.value ? '编辑成功' : '创建成功')
       showAddDialog.value = false
       resetForm()
       fetchReportList()
     } else {
-      ElMessage.error(res.msg || '创建失败')
+      ElMessage.error(res.msg || (editingItem.value ? '编辑失败' : '创建失败'))
     }
   } catch (error) {
     if (error !== false) {

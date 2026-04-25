@@ -238,6 +238,15 @@ export const createReportAPI = (data) => {
   })
 }
 
+// 编辑舆情报告专题
+export const editReportAPI = (data) => {
+  return request({
+    url: '/api/v1/specialReport/edit',
+    method: 'post',
+    data
+  })
+}
+
 // 删除舆情报告专题
 export const deleteReportAPI = (specialReportId) => {
   return request({
