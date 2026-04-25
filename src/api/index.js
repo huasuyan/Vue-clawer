@@ -327,6 +327,64 @@ export const getRolePageListAPI = (data) => {
   })
 }
 
+// 删除角色
+export const deleteRoleAPI = (roleId) => {
+  return request({
+    url: `/api/v1/role/delete`,
+    method: 'get',
+    params: { roleId }
+  })
+}
+
+// 批量删除角色
+export const batchDeleteRoleAPI = (data) => {
+  return request({
+    url: '/api/v1/role/batchDelete',
+    method: 'post',
+    data
+  })
+}
+
+// 刷新权限
+export const refreshAuthorityAPI = () => {
+  return request({
+    url: '/api/v1/role/refreshAuthority',
+    method: 'get'
+  })
+}
+
+// 获取所有权限项
+export const getAuthorityAPI = () => {
+  return request({
+    url: '/api/v1/role/getAuthority',
+    method: 'get'
+  })
+}
+
+// 新增角色
+export const addRoleAPI = (data) => {
+  return request({
+    url: '/api/v1/role/add',
+    method: 'post',
+    data: {
+      ...data,
+      authority: JSON.stringify(data.authority)
+    }
+  })
+}
+
+// 编辑角色
+export const updateRoleAPI = (data) => {
+  return request({
+    url: '/api/v1/role/update',
+    method: 'post',
+    data: {
+      ...data,
+      authority: JSON.stringify(data.authority)
+    }
+  })
+}
+
 // 分页查询舆情报告专题列表
 export const getReportListAPI = (data) => {
   return request({

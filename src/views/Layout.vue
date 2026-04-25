@@ -159,7 +159,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { delTokenAPI, updateUserAPI } from '@/api'
+import { delTokenAPI, updateUserAPI, refreshAuthorityAPI } from '@/api'
 import { ElMessage } from 'element-plus'
 import { ArrowDown, Refresh, Edit, Close } from '@element-plus/icons-vue'
 import md5 from 'js-md5'
@@ -204,9 +204,19 @@ const toggleDropdown = () => {
   showDropdown.value = !showDropdown.value
 }
 
-const refreshPermission = () => {
+const refreshPermission = async () => {
   showDropdown.value = false
-  ElMessage.success('权限已刷新')
+  try {
+    const res = await refreshAuthorityAPI()
+    if (res.code === 1) {
+      ElMessage.success('权限已刷新')
+    } else {
+      ElMessage.error(res.msg || '刷新权限失败')
+    }
+  } catch (err) {
+    ElMessage.error('网络异常，请重试')
+    console.error(err)
+  }
 }
 
 const changePassword = () => {
