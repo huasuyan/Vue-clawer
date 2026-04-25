@@ -439,6 +439,32 @@ export const deleteReportAPI = (specialReportId) => {
   })
 }
 
+// 获取数据大屏摘要
+export const getDashboardSummary = () => {
+  return request({ url: '/api/v1/dashboard/summary', method: 'get' })
+}
+// 获取数据大屏趋势数据
+export const getDashboardTrend = (days) => {
+  return request({ url: '/api/v1/dashboard/trend', method: 'get', params: { days } })
+}
+// 获取数据大屏平台数据
+export const getDashboardPlatform = (data) => {
+  return request({ url: '/api/v1/dashboard/platform', method: 'post', data })
+}
+// 获取数据大屏区域数据
+export const getDashboardRegion = (data) => {
+  return request({ url: '/api/v1/dashboard/region', method: 'post', data })
+}
+// 获取数据大屏热词分析数据
+export const getDashboardHotWords = (data) => {
+  return request({ url: '/api/v1/dashboard/hotWords', method: 'post', data })
+}
+// 手动刷新数据大屏数据
+export const refreshDashboard = () => {
+  return request({ url: '/api/v1/dashboard/refresh', method: 'post' })
+}
+
+
 // 查询舆情报告结果列表
 export const getReportResultListAPI = (data) => {
   return request({
