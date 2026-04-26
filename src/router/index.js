@@ -30,6 +30,10 @@ const routes = [
         component: () => import('@/views/PublicOpinionSearch.vue')
       },
       {
+        path: 'public-opinion/monitor',
+        component: () => import('@/views/PublicOpinionMonitor.vue')
+      },
+      {
         path: 'public-opinion/history',
         component: () => import('@/views/PublicOpinionHistory.vue')
       },

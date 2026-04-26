@@ -48,6 +48,7 @@
           </div>
           <transition name="slide">
             <div v-show="showPublicOpinion" class="submenu">
+              <router-link to="/public-opinion/monitor">舆情监测</router-link>
               <router-link to="/public-opinion/search">舆情检索</router-link>
               <router-link to="/public-opinion/history">检索记录</router-link>
             </div>

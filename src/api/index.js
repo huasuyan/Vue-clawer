@@ -483,6 +483,43 @@ export const getReportDetailAPI = (reportId) => {
   })
 }
 
+// ==================== 舆情监测 ====================
+
+// 文章监测查询（多条件筛选）
+export const getMonitorArticleAPI = (data) => {
+  return request({
+    url: '/api/v1/monitor/article',
+    method: 'post',
+    data
+  })
+}
+
+// 生成统计图表（提交文章数据给后端）
+export const postStatisticsAPI = (data) => {
+  return request({
+    url: '/api/v1/monitor/statistics',
+    method: 'post',
+    data
+  })
+}
+
+// 展示预警/专题列表（获取所有预警和报告专题）
+export const searchAllReportAPI = () => {
+  return request({
+    url: '/api/v1/monitor/searchAllReport',
+    method: 'get'
+  })
+}
+
+// 检索舆情报告信息（分页查询专题关联文章）
+export const getMonitorInfoListAPI = (data) => {
+  return request({
+    url: '/api/v1/monitor/infoList',
+    method: 'post',
+    data
+  })
+}
+
 // 编辑舆情报告
 export const editReportResultAPI = (data) => {
   return request({
