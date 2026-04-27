@@ -127,7 +127,7 @@
 
         <router-link to="/message" class="message-link">
           <span>我的消息</span>
-          <el-badge :value="10" class="message-badge" />
+          <el-badge :value="unreadCount" class="message-badge" />
         </router-link>
       </div>
 
@@ -157,12 +157,13 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
-import { delTokenAPI, updateUserAPI, refreshAuthorityAPI } from '@/api'
-import { ElMessage } from 'element-plus'
+import { delTokenAPI, updateUserAPI, refreshAuthorityAPI, getUnreadCountAPI } from '@/api'
+import { ElMessage, ElNotification } from 'element-plus'
 import { ArrowDown, Refresh, Edit, Close } from '@element-plus/icons-vue'
 import md5 from 'js-md5'
+import wsClient from '@/utils/websocket'
 
 const router = useRouter()
 const showDropdown = ref(false)
@@ -172,6 +173,40 @@ const showWarning = ref(false)
 const showAnalysis = ref(false)
 const showDocument = ref(false)
 const showSystem = ref(false)
+
+// 未读数量（驱动小红点）
+const unreadCount = ref(0)
+
+// 定时轮询未读数（30秒一次）
+let pollTimer = null
+const fetchUnreadCount = async () => {
+  try {
+    const res = await getUnreadCountAPI()
+    if (res.code === 1) unreadCount.value = res.data.unreadCount
+  } catch (_) {}
+}
+
+onMounted(() => {
+  fetchUnreadCount()
+  pollTimer = setInterval(fetchUnreadCount, 30000)
+  // 监听 WebSocket，收到 alert_message 时在右下角弹出浮动通知，5s 后自动关闭
+  wsClient.onMessage((data) => {
+    if (data.type === 'alert_message') {
+      ElNotification({
+        title: data.alert_name,
+        message: data.content,
+        type: 'warning',
+        position: 'bottom-right',
+        duration: 5000
+      })
+      fetchUnreadCount()
+    }
+  })
+})
+
+onBeforeUnmount(() => {
+  clearInterval(pollTimer)
+})
 
 // 修改密码对话框
 const showPasswordDialog = ref(false)

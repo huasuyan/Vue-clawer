@@ -520,6 +520,14 @@ export const getMonitorInfoListAPI = (data) => {
   })
 }
 
+// 获取所有文章来源
+export const searchAllSourceAPI = () => {
+  return request({
+    url: '/api/v1/monitor/searchAllSource',
+    method: 'get'
+  })
+}
+
 // 编辑舆情报告
 export const editReportResultAPI = (data) => {
   return request({
@@ -537,3 +545,23 @@ export const deleteReportResultAPI = (reportId) => {
     params: { reportId }
   })
 }
+
+// 获取未读消息数量
+export const getUnreadCountAPI = () =>
+  request({ url: '/api/v1/alertMessage/unreadCount', method: 'get' })
+
+// 分页查询消息列表
+export const getMessageListAPI = (data) =>
+  request({ url: '/api/v1/alertMessage/pageList', method: 'post', data })
+
+// 标记单条已读
+export const markReadAPI = (data) =>
+  request({ url: '/api/v1/alertMessage/markRead', method: 'post', data })
+
+// 批量标记已读
+export const batchMarkReadAPI = (data) =>
+  request({ url: '/api/v1/alertMessage/batchMarkRead', method: 'post', data })
+
+// 全部标记已读
+export const markAllReadAPI = () =>
+  request({ url: '/api/v1/alertMessage/markAllRead', method: 'post' })
