@@ -565,3 +565,41 @@ export const batchMarkReadAPI = (data) =>
 // 全部标记已读
 export const markAllReadAPI = () =>
   request({ url: '/api/v1/alertMessage/markAllRead', method: 'post' })
+
+// ==================== 办件管理 ====================
+
+// 预警记录转为办件
+export const createCaseAPI = (data) =>
+  request({ url: '/api/v1/case/create', method: 'post', data })
+
+// 条件查询办件列表
+export const getCasePageListAPI = (data) =>
+  request({ url: '/api/v1/case/pageList', method: 'post', data })
+
+// 提交意见
+export const submitCaseTextAPI = (data) =>
+  request({ url: '/api/v1/case/submitText', method: 'post', data })
+
+// 办理办件
+export const processCaseAPI = (caseId) =>
+  request({ url: '/api/v1/case/process', method: 'get', params: { caseId } })
+
+// 归档办件
+export const archiveCaseAPI = (caseId) =>
+  request({ url: '/api/v1/case/archive', method: 'get', params: { caseId } })
+
+// 关闭办件
+export const closeCaseAPI = (caseId) =>
+  request({ url: '/api/v1/case/close', method: 'get', params: { caseId } })
+
+// 启用办件
+export const enableCaseAPI = (caseId) =>
+  request({ url: '/api/v1/case/enable', method: 'get', params: { caseId } })
+
+// 标记异常办件
+export const markExceptionCaseAPI = (caseId) =>
+  request({ url: '/api/v1/case/markException', method: 'get', params: { caseId } })
+
+// 查询办件上传信息列表
+export const getCaseTextListAPI = (caseId) =>
+  request({ url: '/api/v1/case/textList', method: 'get', params: { caseId } })

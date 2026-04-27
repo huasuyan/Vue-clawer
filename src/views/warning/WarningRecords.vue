@@ -157,22 +157,35 @@
     </el-card>
 
     <!-- 处理对话框 -->
-    <el-dialog v-model="showProcessDialog" title="处理预警" width="500px">
-      <el-form :model="processForm" label-width="100px">
-        <el-form-item label="处理结果">
-          <el-select v-model="processForm.result" placeholder="请选择处理结果">
-            <el-option label="已处理" value="已处理" />
-            <el-option label="误报" value="误报" />
-            <el-option label="待跟进" value="待跟进" />
+    <el-dialog v-model="showProcessDialog" title="转为办件" width="520px">
+      <el-form :model="processForm" label-width="100px" :rules="processRules" ref="processFormRef">
+        <el-form-item label="办件名称" prop="caseName">
+          <el-input v-model="processForm.caseName" placeholder="请输入办件名称" />
+        </el-form-item>
+        <el-form-item label="办件描述" prop="caseInfo">
+          <el-input v-model="processForm.caseInfo" type="textarea" :rows="3" placeholder="请输入办件描述" />
+        </el-form-item>
+        <el-form-item label="办件等级" prop="caseLevel">
+          <el-select v-model="processForm.caseLevel" placeholder="请选择">
+            <el-option label="紧急" :value="0" />
+            <el-option label="高" :value="1" />
+            <el-option label="中" :value="2" />
+            <el-option label="一般" :value="3" />
           </el-select>
         </el-form-item>
-        <el-form-item label="处理说明">
-          <el-input v-model="processForm.remark" type="textarea" :rows="4" placeholder="请输入处理说明" />
+        <el-form-item label="所属部门" prop="deptId">
+          <el-tree-select v-model="processForm.deptId" :data="deptTree" :props="{label:'deptName',value:'deptId',children:'children'}"
+            placeholder="请选择部门" check-strictly style="width:100%" />
+        </el-form-item>
+        <el-form-item label="涉案金额">
+          <el-input v-model="processForm.money" placeholder="请输入涉案金额">
+            <template #append>元</template>
+          </el-input>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showProcessDialog = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmitProcess">确定</el-button>
+        <el-button type="primary" :loading="processSubmitting" @click="handleSubmitProcess">确认转为办件</el-button>
       </template>
     </el-dialog>
   </div>
@@ -181,7 +194,7 @@
 <script setup>
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { searchAllAlertAPI, getAlertInfoListAPI, deleteAlertInfoAPI, getAlertStatisticsAPI } from '@/api/index'
+import { searchAllAlertAPI, getAlertInfoListAPI, deleteAlertInfoAPI, getAlertStatisticsAPI, createCaseAPI, getDeptTreeAPI } from '@/api/index'
 import * as echarts from 'echarts'
 import chinaJson from '@/assets/china.json'
 
@@ -319,10 +332,30 @@ const total = ref(0)
 const selectedRows = ref([])
 
 const showProcessDialog = ref(false)
+const processSubmitting = ref(false)
+const processFormRef = ref(null)
+const currentProcessItem = ref(null)
 const processForm = ref({
-  result: '',
-  remark: ''
+  caseName: '',
+  caseInfo: '',
+  caseLevel: null,
+  deptId: null,
+  money: ''
 })
+const processRules = {
+  caseName: [{ required: true, message: '请输入办件名称', trigger: 'blur' }],
+  caseInfo: [{ required: true, message: '请输入办件描述', trigger: 'blur' }],
+  caseLevel: [{ required: true, message: '请选择办件等级', trigger: 'change' }],
+  deptId: [{ required: true, message: '请选择所属部门', trigger: 'change' }]
+}
+
+const deptTree = ref([])
+const loadDeptTree = async () => {
+  try {
+    const res = await getDeptTreeAPI({ showEnable: 0 })
+    if (res.code === 1) deptTree.value = res.data || []
+  } catch (_) {}
+}
 
 const recordsList = ref([])
 
@@ -610,21 +643,48 @@ const handleReset = () => {
   regionChartData.value = []
 }
 
-const handleProcess = () => {
+const handleProcess = (item) => {
+  currentProcessItem.value = item
   processForm.value = {
-    result: '',
-    remark: ''
+    caseName: '',
+    caseInfo: '',
+    caseLevel: null,
+    deptId: null,
+    money: ''
   }
   showProcessDialog.value = true
+  loadDeptTree()
 }
 
-const handleSubmitProcess = () => {
-  if (!processForm.value.result) {
-    ElMessage.warning('请选择处理结果')
+const handleSubmitProcess = async () => {
+  if (!processFormRef.value) return
+  try {
+    await processFormRef.value.validate()
+  } catch {
     return
   }
-  ElMessage.success('处理成功')
-  showProcessDialog.value = false
+
+  processSubmitting.value = true
+  try {
+    const res = await createCaseAPI({
+      caseName: processForm.value.caseName,
+      caseInfo: processForm.value.caseInfo,
+      caseLevel: processForm.value.caseLevel,
+      deptId: processForm.value.deptId,
+      money: processForm.value.money ? Number(processForm.value.money) : null,
+      newsId: currentProcessItem.value?.newsId
+    })
+    if (res.code === 1) {
+      ElMessage.success('转为办件成功')
+      showProcessDialog.value = false
+    } else {
+      ElMessage.error(res.msg || '转为办件失败')
+    }
+  } catch (err) {
+    ElMessage.error('网络异常，请重试')
+  } finally {
+    processSubmitting.value = false
+  }
 }
 
 const handleDelete = async (item) => {

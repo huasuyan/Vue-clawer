@@ -97,10 +97,7 @@
           <transition name="slide">
             <div v-show="showDocument" class="submenu">
               <router-link to="/document/warning-map">预警地图</router-link>
-              <router-link to="/document/process" class="submenu-with-badge">
-                <span>办件办理</span>
-                <el-badge :value="10" class="submenu-badge" />
-              </router-link>
+              <router-link to="/document/process">办件办理</router-link>
               <router-link to="/document/query">办件查询</router-link>
             </div>
           </transition>
@@ -124,7 +121,7 @@
 
         <router-link to="/message" class="message-link">
           <span>我的消息</span>
-          <el-badge :value="unreadCount" class="message-badge" />
+          <el-badge :value="unreadCount" :hidden="unreadCount === 0" class="message-badge" />
         </router-link>
       </div>
 
