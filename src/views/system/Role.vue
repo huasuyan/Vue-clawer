@@ -165,6 +165,19 @@
             clearable
           />
         </el-form-item>
+        <el-form-item label="所属部门" prop="deptId" v-if="!isEditMode">
+          <el-input
+            v-model="selectedDeptName"
+            placeholder="请选择部门"
+            readonly
+            @click="showDeptDialog = true"
+            style="cursor: pointer;"
+          >
+            <template #suffix>
+              <el-icon style="cursor: pointer;"><ArrowDown /></el-icon>
+            </template>
+          </el-input>
+        </el-form-item>
         <el-form-item label="数据权限" prop="dataScope">
           <el-select
             v-model="roleForm.dataScope"
@@ -214,14 +227,50 @@
         <el-button type="primary" @click="handleSubmitRole" :loading="submitting">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 部门选择对话框 -->
+    <el-dialog
+      v-model="showDeptDialog"
+      title="选择部门"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-tree
+        :data="deptTreeData"
+        :props="deptTreeProps"
+        node-key="deptId"
+        default-expand-all
+        highlight-current
+        @node-click="handleDeptNodeClick"
+      >
+        <template #default="{ node }">
+          <span>{{ node.label }}</span>
+        </template>
+      </el-tree>
+      <template #footer>
+        <el-button @click="showDeptDialog = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmDept">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { CircleCheck, CircleClose, ArrowDown } from '@element-plus/icons-vue'
 import { getRolePageListAPI, deleteRoleAPI, batchDeleteRoleAPI, getAuthorityAPI, addRoleAPI, updateRoleAPI, getRoleUserListAPI } from '@/api'
+import { getDeptTreeAPI } from '@/api'
+
+// 部门选择相关
+const showDeptDialog = ref(false)
+const deptTreeData = ref([])
+const deptTreeProps = {
+  children: 'children',
+  label: 'deptName'
+}
+const selectedDeptId = ref(null)
+const selectedDeptName = ref('')
 
 // 搜索表单
 const searchForm = ref({
@@ -371,6 +420,8 @@ const initAuthorityForm = () => {
 const handleAdd = () => {
   isEditMode.value = false
   showRoleDialog.value = true
+  selectedDeptId.value = null
+  selectedDeptName.value = ''
   roleForm.value = {
     roleName: '',
     dataScope: 2,
@@ -379,6 +430,7 @@ const handleAdd = () => {
     authority: initAuthorityForm()
   }
   roleFormRef.value?.clearValidate()
+  loadDeptTree()
 }
 
 // 提交角色表单
@@ -386,9 +438,21 @@ const handleSubmitRole = async () => {
   try {
     await roleFormRef.value?.validate()
 
+    if (!isEditMode.value && !selectedDeptId.value) {
+      ElMessage.warning('请选择所属部门')
+      return
+    }
+
     submitting.value = true
     const api = isEditMode.value ? updateRoleAPI : addRoleAPI
-    const res = await api(roleForm.value)
+
+    // 确保新增时带上部门 ID
+    const submitData = { ...roleForm.value }
+    if (!isEditMode.value && selectedDeptId.value) {
+      submitData.deptId = selectedDeptId.value
+    }
+
+    const res = await api(submitData)
 
     if (res.code === 1) {
       ElMessage.success(isEditMode.value ? '编辑角色成功' : '新增角色成功')
@@ -576,6 +640,36 @@ const handleSizeChange = (val) => {
 const handleCurrentChange = (val) => {
   pagination.value.page = val
   loadTableData()
+}
+
+// 加载部门树
+const loadDeptTree = async () => {
+  try {
+    const res = await getDeptTreeAPI({ showEnable: 1 })
+    if (res.code === 1) {
+      deptTreeData.value = res.data || []
+    } else {
+      ElMessage.error(res.msg || '获取部门列表失败')
+    }
+  } catch (err) {
+    ElMessage.error('网络异常，请重试')
+    console.error(err)
+  }
+}
+
+// 处理部门树节点点击
+const handleDeptNodeClick = (data) => {
+  selectedDeptId.value = data.deptId
+  selectedDeptName.value = data.deptName
+}
+
+// 确认选择部门
+const handleConfirmDept = () => {
+  if (!selectedDeptId.value) {
+    ElMessage.warning('请选择一个部门')
+    return
+  }
+  showDeptDialog.value = false
 }
 
 // 页面加载时获取数据
