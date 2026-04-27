@@ -1,39 +1,45 @@
 <template>
   <div class="public-opinion-search">
     <div class="search-header">
-      <h2>选择舆情报告专题ID</h2>
+      <h2>专题检索</h2>
     </div>
 
-    <!-- 筛选条件面板 -->
     <div class="filter-panel">
       <div class="filter-row">
-        <span class="filter-label">舆情报告专题ID：</span>
-        <el-input
-          v-model="specialReportId"
-          placeholder="请输入舆情报告专题ID"
-          style="width: 300px;"
+        <span class="filter-label">选择报告专题：</span>
+        <el-select
+          v-model="selectedReportId"
+          placeholder="请选择报告专题"
+          style="width: 350px"
+          filterable
           clearable
-        />
+        >
+          <el-option
+            v-for="item in reports"
+            :key="item.specialReportId"
+            :label="item.reportName"
+            :value="item.specialReportId"
+          />
+        </el-select>
       </div>
 
       <div class="filter-actions">
-        <el-button type="primary" @click="handleSearch">查询</el-button>
+        <el-button type="primary" @click="handleSearch" :loading="loading">查询</el-button>
         <el-button @click="handleReset">重置</el-button>
       </div>
     </div>
 
-    <!-- 结果列表 -->
     <div class="result-panel">
       <div class="toolbar">
         <span class="result-count">共 {{ total }} 条结果</span>
       </div>
 
       <div class="result-list" v-loading="loading">
-        <div v-if="newsList.length === 0 && !loading" class="empty-state">
-          <el-empty description="暂无数据，请输入舆情报告专题ID进行查询" />
+        <div v-if="articleList.length === 0 && !loading" class="empty-state">
+          <el-empty description="暂无数据，请选择专题后查询" />
         </div>
 
-        <div v-for="item in newsList" :key="item.id" class="result-item">
+        <div v-for="item in articleList" :key="item.newsId" class="result-item">
           <div class="item-header">
             <span class="item-title">{{ item.title || '无标题' }}</span>
           </div>
@@ -42,8 +48,8 @@
           </div>
           <div class="item-meta">
             <span v-if="item.source">来源：{{ item.source }}</span>
-            <span v-if="item.author">作者：{{ item.author }}</span>
             <span v-if="item.publishTime">发布时间：{{ item.publishTime }}</span>
+            <span v-if="item.author">作者：{{ item.author }}</span>
             <span v-if="item.url">
               <a :href="item.url" target="_blank" class="link">查看原文</a>
             </span>
@@ -51,7 +57,6 @@
         </div>
       </div>
 
-      <!-- 分页 -->
       <div class="pagination" v-if="total > 0">
         <el-pagination
           v-model:current-page="currentPage"
@@ -68,46 +73,55 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import axios from 'axios'
+import { getReportListAPI, getMonitorInfoListAPI } from '@/api'
 
-const specialReportId = ref('')
+const reports = ref([])
+const selectedReportId = ref(null)
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const loading = ref(false)
-const newsList = ref([])
+const articleList = ref([])
+
+const loadReports = async () => {
+  try {
+    const res = await getReportListAPI({ pageNum: 1, pageSize: 999 })
+    if (res.code === 1) {
+      reports.value = res.data?.reportList || []
+    }
+  } catch (err) {
+    console.error('获取报告专题列表失败:', err)
+  }
+}
 
 const handleSearch = async () => {
-  if (!specialReportId.value) {
-    ElMessage.warning('请输入舆情报告专题ID')
+  if (!selectedReportId.value) {
+    ElMessage.warning('请先选择报告专题')
     return
   }
 
   loading.value = true
   try {
-    const response = await axios.get('/api/v1/specialReport/searchAllReportNews', {
-      params: {
-        special_report_id: specialReportId.value,
-        page: currentPage.value,
-        pageSize: pageSize.value
-      }
+    const res = await getMonitorInfoListAPI({
+      reportId: selectedReportId.value,
+      pageNum: currentPage.value,
+      pageSize: pageSize.value
     })
 
-    if (response.data.code === 1) {
-      newsList.value = response.data.data.dataList || []
-      total.value = response.data.data.total || newsList.value.length
-      ElMessage.success('查询成功')
+    if (res.code === 1) {
+      articleList.value = res.data?.dataList || []
+      total.value = res.data?.total || articleList.value.length
     } else {
-      ElMessage.error(response.data.msg || '查询失败')
-      newsList.value = []
+      ElMessage.error(res.msg || '查询失败')
+      articleList.value = []
       total.value = 0
     }
-  } catch (error) {
-    console.error('查询失败:', error)
+  } catch (err) {
+    console.error('专题检索失败:', err)
     ElMessage.error('网络异常，请重试')
-    newsList.value = []
+    articleList.value = []
     total.value = 0
   } finally {
     loading.value = false
@@ -115,12 +129,16 @@ const handleSearch = async () => {
 }
 
 const handleReset = () => {
-  specialReportId.value = ''
+  selectedReportId.value = null
   currentPage.value = 1
   pageSize.value = 10
-  newsList.value = []
+  articleList.value = []
   total.value = 0
 }
+
+onMounted(() => {
+  loadReports()
+})
 </script>
 
 <style scoped>
@@ -153,7 +171,6 @@ const handleReset = () => {
   color: #666;
   font-size: 14px;
 }
-
 
 .filter-actions {
   display: flex;

@@ -25,17 +25,15 @@ const routes = [
         path: 'dashboard',
         component: () => import('@/views/Dashboard.vue')
       },
-      {
-        path: 'public-opinion/search',
-        component: () => import('@/views/PublicOpinionSearch.vue')
-      },
+      // 舆情监测：多条件筛选文章列表
       {
         path: 'public-opinion/monitor',
         component: () => import('@/views/PublicOpinionMonitor.vue')
       },
+      // 舆情检索：按当前用户的报告专题检索文章（原"检索记录"已删除）
       {
-        path: 'public-opinion/history',
-        component: () => import('@/views/PublicOpinionHistory.vue')
+        path: 'public-opinion/search',
+        component: () => import('@/views/PublicOpinionSearch.vue')
       },
       {
         path: 'warning/config',

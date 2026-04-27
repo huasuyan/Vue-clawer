@@ -200,7 +200,7 @@ import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getReportResultListAPI, getReportDetailAPI, editReportResultAPI, deleteReportResultAPI } from '@/api/index'
 import * as echarts from 'echarts'
-import 'echarts-wordcloud'
+
 import chinaJson from '@/assets/china.json'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
@@ -662,6 +662,80 @@ const initReportMap = (list) => {
   })
 }
 
+const COLORS = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
+
+const isInside = (x, y, placed, padW, padH, w, h) => {
+  for (const p of placed) {
+    if (x < p.x + p.w + padW && x + w + padW > p.x && y < p.y + p.h + padH && y + h + padH > p.y) return true
+  }
+  return false
+}
+
+const spiralPos = (i, cx, cy, rMax) => {
+  const angle = i * 2.4
+  const r = Math.min(rMax, 10 + i * 2.5)
+  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) }
+}
+
+const buildWordCloudGraphic = (data, width, height) => {
+  const maxVal = Math.max(...data.map(d => d.value))
+  const minVal = Math.min(...data.map(d => d.value))
+  const range = maxVal - minVal || 1
+  const cx = width / 2
+  const cy = height / 2
+  const placed = []
+  const elements = []
+  const sorted = [...data].sort((a, b) => b.value - a.value)
+
+  const maxFontSize = Math.min(height * 0.12, 36)
+  const minFontSize = Math.min(height * 0.04, 12)
+
+  sorted.forEach((item, idx) => {
+    const ratio = (item.value - minVal) / range
+    const fontSize = minFontSize + ratio * (maxFontSize - minFontSize)
+    const estW = item.name.length * fontSize * 0.65
+    const estH = fontSize * 1.4
+    const padW = 6
+    const padH = 4
+    const rMax = Math.min(width, height) * 0.45
+    let found = false
+    for (let attempt = 0; attempt < 600; attempt++) {
+      const pos = spiralPos(attempt, cx, cy, rMax)
+      const px = pos.x - estW / 2
+      const py = pos.y - estH / 2
+      if (px < 0 || py < 0 || px + estW > width || py + estH > height) continue
+      if (!isInside(px, py, placed, padW, padH, estW, estH)) {
+        placed.push({ x: px, y: py, w: estW, h: estH })
+        elements.push({
+          type: 'text',
+          left: px,
+          top: py,
+          style: {
+            text: item.name,
+            fontSize,
+            fontWeight: 'bold',
+            fill: COLORS[idx % COLORS.length]
+          },
+          rotation: attempt % 4 === 0 ? 0 : ((-20 + (attempt * 17) % 40) * Math.PI) / 180
+        })
+        found = true
+        break
+      }
+    }
+    if (!found) {
+      placed.push({ x: 0, y: cy, w: estW, h: estH })
+      elements.push({
+        type: 'text',
+        left: 0,
+        top: cy - estH / 2,
+        style: { text: item.name, fontSize, fontWeight: 'bold', fill: COLORS[idx % COLORS.length] },
+        rotation: 0
+      })
+    }
+  })
+  return elements
+}
+
 // 初始化热词词云图
 const initHotWordsCloud = (list) => {
   if (!hotWordsCloudRef.value || !list.length) return
@@ -669,36 +743,11 @@ const initHotWordsCloud = (list) => {
   if (hotWordsChart) hotWordsChart.dispose()
   hotWordsChart = echarts.init(hotWordsCloudRef.value)
 
-  const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4']
+  const w = hotWordsCloudRef.value.clientWidth || 400
+  const h = 360
 
-  hotWordsChart.setOption({
-    series: [{
-      type: 'wordCloud',
-      shape: 'circle',
-      sizeRange: [14, 50],
-      rotationRange: [-30, 30],
-      rotationStep: 15,
-      gridSize: 8,
-      left: 'center',
-      top: 'center',
-      right: null,
-      bottom: null,
-      width: '90%',
-      height: '90%',
-      drawOutOfBound: false,
-      shrinkToFit: true,
-      textStyle: {
-        color: () => colors[Math.floor(Math.random() * colors.length)]
-      },
-      data: list.map(item => ({
-        name: item.name,
-        value: item.value,
-        textStyle: {
-          color: colors[Math.floor(Math.random() * colors.length)]
-        }
-      }))
-    }]
-  })
+  const graphicElements = buildWordCloudGraphic(list, w, h)
+  hotWordsChart.setOption({ graphic: graphicElements })
 }
 
 // 计算热词占比
