@@ -91,6 +91,10 @@ const routes = [
         path: 'analysis/report-setting',
         component: () => import('@/views/analysis/ReportSetting.vue')
       },
+      {
+        path: 'message',
+        component: () => import('@/views/Message.vue')
+      },
     ]
   }
 ]
