@@ -520,6 +520,14 @@ export const getMonitorInfoListAPI = (data) => {
   })
 }
 
+// 获取所有文章来源
+export const searchAllSourceAPI = () => {
+  return request({
+    url: '/api/v1/monitor/searchAllSource',
+    method: 'get'
+  })
+}
+
 // 编辑舆情报告
 export const editReportResultAPI = (data) => {
   return request({

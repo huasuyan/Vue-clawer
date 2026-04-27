@@ -39,20 +39,31 @@
           <el-empty description="暂无数据，请选择专题后查询" />
         </div>
 
-        <div v-for="item in articleList" :key="item.newsId" class="result-item">
-          <div class="item-header">
-            <span class="item-title">{{ item.title || '无标题' }}</span>
-          </div>
-          <div class="item-content" v-if="item.content">
-            {{ item.content.substring(0, 200) }}{{ item.content.length > 200 ? '...' : '' }}
-          </div>
-          <div class="item-meta">
-            <span v-if="item.source">来源：{{ item.source }}</span>
-            <span v-if="item.publishTime">发布时间：{{ item.publishTime }}</span>
-            <span v-if="item.author">作者：{{ item.author }}</span>
-            <span v-if="item.url">
-              <a :href="item.url" target="_blank" class="link">查看原文</a>
-            </span>
+        <div v-for="(item, index) in articleList" :key="item.newsId || index" class="record-item">
+          <div class="item-main">
+            <div class="item-title-row">
+              <span class="item-title">{{ item.title }}</span>
+              <div class="item-tags">
+                <el-tag size="small" v-if="item.source" type="primary" effect="plain">{{ item.source }}</el-tag>
+                <el-tag size="small" v-if="item.sensitivityLevel !== undefined" :type="sensitivityTagType(item.sensitivityLevel)" effect="plain">
+                  {{ sensitivityLabel(item.sensitivityLevel) }}
+                </el-tag>
+                <el-tag size="small" v-if="item.sentimentType !== undefined" :type="sentimentTagType(item.sentimentType)" effect="plain">
+                  {{ sentimentLabel(item.sentimentType) }}
+                </el-tag>
+                <el-tag size="small" v-if="item.region" type="primary" effect="plain">{{ item.region }}</el-tag>
+              </div>
+            </div>
+            <div class="item-content">{{ item.content || '暂无内容摘要' }}</div>
+            <div class="item-footer">
+              <div class="footer-meta">
+                <span v-if="item.publishTime">发文时间：{{ formatTime(item.publishTime) }}</span>
+                <span v-if="item.region">地域：{{ item.region }}</span>
+              </div>
+              <div class="footer-actions">
+                <el-button v-if="item.originalUrl" link type="primary" @click="openUrl(item.originalUrl)">查看原文</el-button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -111,7 +122,7 @@ const handleSearch = async () => {
     })
 
     if (res.code === 1) {
-      articleList.value = res.data?.dataList || []
+      articleList.value = res.data?.datalist || []
       total.value = res.data?.total || articleList.value.length
     } else {
       ElMessage.error(res.msg || '查询失败')
@@ -136,6 +147,56 @@ const handleReset = () => {
   total.value = 0
 }
 
+// ==================== 辅助方法 ====================
+const sensitivityTagType = (level) => {
+  switch (level) {
+    case 0: return 'success'
+    case 1: return 'warning'
+    case 2: return 'danger'
+    case 3: return 'danger'
+    default: return 'info'
+  }
+}
+
+const sensitivityLabel = (level) => {
+  switch (level) {
+    case 0: return '普通'
+    case 1: return '低敏感'
+    case 2: return '中敏感'
+    case 3: return '高敏感'
+    default: return '未知'
+  }
+}
+
+const sentimentTagType = (type) => {
+  switch (type) {
+    case 1: return 'success'
+    case 0: return 'info'
+    case -1: return 'danger'
+    default: return 'info'
+  }
+}
+
+const sentimentLabel = (type) => {
+  switch (type) {
+    case 1: return '正面'
+    case 0: return '中性'
+    case -1: return '负面'
+    default: return '未知'
+  }
+}
+
+const formatTime = (time) => {
+  if (!time) return ''
+  const d = new Date(time)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const openUrl = (url) => {
+  window.open(url, '_blank')
+}
+
 onMounted(() => {
   loadReports()
 })
@@ -143,8 +204,7 @@ onMounted(() => {
 
 <style scoped>
 .public-opinion-search {
-  padding: 20px;
-  background: #fff;
+  padding: 0;
 }
 
 .search-header h2 {
@@ -154,10 +214,11 @@ onMounted(() => {
 }
 
 .filter-panel {
-  background: #fafafa;
+  background: #fff;
   padding: 20px;
   border-radius: 8px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .filter-row {
@@ -168,8 +229,9 @@ onMounted(() => {
 
 .filter-label {
   min-width: 150px;
-  color: #666;
+  color: #333;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .filter-actions {
@@ -178,13 +240,13 @@ onMounted(() => {
   gap: 15px;
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #e8e8e8;
+  border-top: 1px solid #f0f0f0;
 }
 
 .result-panel {
   background: #fff;
-  border: 1px solid #e8e8e8;
   border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
 }
 
 .toolbar {
@@ -203,54 +265,75 @@ onMounted(() => {
 }
 
 .empty-state {
-  padding: 40px 0;
+  padding: 60px 0;
 }
 
-.result-item {
+.record-item {
+  display: flex;
   padding: 15px;
-  border: 1px solid #e8e8e8;
+  border: 1px solid #e4e7ed;
   border-radius: 4px;
   margin-bottom: 10px;
-  transition: all 0.3s;
+  background-color: #fff;
+  transition: box-shadow 0.3s;
 }
 
-.result-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.record-item:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 }
 
-.item-header {
-  margin-bottom: 10px;
+.item-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .item-title {
   font-size: 16px;
-  color: #333;
-  font-weight: 500;
+  font-weight: bold;
+  color: #303133;
+}
+
+.item-tags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
 }
 
 .item-content {
   font-size: 14px;
-  color: #666;
-  line-height: 1.6;
-  margin-bottom: 10px;
+  color: #606266;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.item-meta {
+.item-footer {
   display: flex;
-  gap: 20px;
-  font-size: 13px;
-  color: #999;
+  justify-content: space-between;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
-.link {
-  color: #1890ff;
-  text-decoration: none;
-}
-
-.link:hover {
-  color: #40a9ff;
-  text-decoration: underline;
+.footer-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 13px;
+  color: #909399;
+  flex-wrap: wrap;
 }
 
 .pagination {
