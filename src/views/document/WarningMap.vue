@@ -1,122 +1,215 @@
 <template>
   <div class="warning-map-container">
     <!-- 左侧统计面板 -->
-    <div class="stats-panel">
-      <div class="stat-item" @click="filterType('person')">
-        <div class="stat-icon person-icon">
-          <el-icon><User /></el-icon>
+    <transition name="slide-left">
+      <div v-show="showStatsPanel" class="stats-panel">
+        <div class="stat-item" @click="filterType(1)">
+          <div class="stat-icon person-icon">
+            <el-icon><User /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">一级预警</div>
+            <div class="stat-value">{{ stats.person }}</div>
+          </div>
         </div>
-        <div class="stat-content">
-          <div class="stat-label">预警人员今日预警</div>
-          <div class="stat-value">{{ stats.person }}</div>
-        </div>
-      </div>
 
-      <div class="stat-item" @click="filterType('event')">
-        <div class="stat-icon event-icon">
-          <el-icon><OfficeBuilding /></el-icon>
+        <div class="stat-item" @click="filterType(2)">
+          <div class="stat-icon event-icon">
+            <el-icon><OfficeBuilding /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">二级预警</div>
+            <div class="stat-value">{{ stats.event }}</div>
+          </div>
         </div>
-        <div class="stat-content">
-          <div class="stat-label">预警事件今日预警</div>
-          <div class="stat-value">{{ stats.event }}</div>
-        </div>
-      </div>
 
-      <div class="stat-item" @click="filterType('location')">
-        <div class="stat-icon location-icon">
-          <el-icon><Location /></el-icon>
+        <div class="stat-item" @click="filterType(3)">
+          <div class="stat-icon location-icon">
+            <el-icon><Location /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">三级预警</div>
+            <div class="stat-value">{{ stats.location }}</div>
+          </div>
         </div>
-        <div class="stat-content">
-          <div class="stat-label">预警地点今日预警</div>
-          <div class="stat-value">{{ stats.location }}</div>
-        </div>
-      </div>
 
-      <div class="stat-item" @click="filterType('vehicle')">
-        <div class="stat-icon vehicle-icon">
-          <el-icon><Van /></el-icon>
-        </div>
-        <div class="stat-content">
-          <div class="stat-label">预警车辆今日预警</div>
-          <div class="stat-value">{{ stats.vehicle }}</div>
+        <div class="stat-item" @click="filterType('all')">
+          <div class="stat-icon vehicle-icon">
+            <el-icon><Van /></el-icon>
+          </div>
+          <div class="stat-content">
+            <div class="stat-label">预警总数</div>
+            <div class="stat-value">{{ stats.vehicle }}</div>
+          </div>
         </div>
       </div>
+    </transition>
+
+    <!-- 左侧收起/展开按钮 -->
+    <div class="toggle-btn left-toggle" :class="{ collapsed: !showStatsPanel }" @click="showStatsPanel = !showStatsPanel">
+      <el-icon><DArrowLeft v-if="showStatsPanel" /><DArrowRight v-else /></el-icon>
     </div>
 
     <!-- 地图容器 -->
     <div id="map-container" class="map-container"></div>
 
-    <!-- 右上角控制按钮 -->
-    <div class="map-controls">
-      <el-button :type="activeFilter === 'person' ? 'primary' : ''" @click="toggleFilter('person')">
-        预警人员
-      </el-button>
-      <el-button :type="activeFilter === 'event' ? 'primary' : ''" @click="toggleFilter('event')">
-        预警事件
-      </el-button>
-      <el-button :type="activeFilter === 'location' ? 'primary' : ''" @click="toggleFilter('location')">
-        预警地点
-      </el-button>
+    <!-- 右侧预警事件列表 -->
+    <transition name="slide-right">
+      <div v-show="showEventsPanel" class="events-panel">
+      <div class="events-header">
+        <h3>预警事件列表</h3>
+        <span class="events-count">共 {{ filteredWarningData.length }} 条</span>
+      </div>
+      <div class="time-filter">
+        <el-radio-group v-model="timeRange" size="small" @change="handleTimeRangeChange">
+          <el-radio-button label="today">今日</el-radio-button>
+          <el-radio-button label="7day">近7日</el-radio-button>
+          <el-radio-button label="30day">近30日</el-radio-button>
+          <el-radio-button label="all">全部</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="topic-filter">
+        <el-select
+          v-model="selectedTopic"
+          placeholder="选择预警专题"
+          size="small"
+          clearable
+          @change="handleTopicChange"
+          style="width: 100%"
+        >
+          <el-option label="全部专题" value="" />
+          <el-option
+            v-for="topic in topicList"
+            :key="topic"
+            :label="topic"
+            :value="topic"
+          />
+        </el-select>
+      </div>
+      <div class="events-list">
+        <div
+          v-for="item in filteredWarningData"
+          :key="item.id"
+          class="event-item"
+          @click="focusOnEvent(item)"
+        >
+          <div class="event-level" :class="`level-${item.alertLevel}`">
+            {{ ['', '一级', '二级', '三级'][item.alertLevel] }}
+          </div>
+          <div class="event-content">
+            <div class="event-title">{{ item.alertName }}</div>
+            <div class="event-news">{{ item.newsTitle }}</div>
+            <div class="event-time">{{ formatTime(item.alertDate) }}</div>
+          </div>
+        </div>
+      </div>
     </div>
+    </transition>
 
-    <!-- 底部图例 -->
-    <div class="map-legend">
-      <div class="legend-item">
-        <span class="legend-icon level-1">▲</span>
-        <span>一级预警人员</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon level-2">▲</span>
-        <span>二级预警人员</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon level-3">▲</span>
-        <span>三级预警人员</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon attention">👤</span>
-        <span>关注预警人员</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon event">🏢</span>
-        <span>预警事件</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon location">📍</span>
-        <span>预警地点</span>
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon vehicle">🚗</span>
-        <span>预警车辆</span>
-      </div>
+    <!-- 右侧收起/展开按钮 -->
+    <div class="toggle-btn right-toggle" :class="{ collapsed: !showEventsPanel }" @click="showEventsPanel = !showEventsPanel">
+      <el-icon><DArrowRight v-if="showEventsPanel" /><DArrowLeft v-else /></el-icon>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { User, OfficeBuilding, Location, Van } from '@element-plus/icons-vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { User, OfficeBuilding, Location, Van, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
 import AMapLoader from '@amap/amap-jsapi-loader'
+import request from '@/utils/request'
 
 const map = ref(null)
 const activeFilter = ref('')
 const markers = ref([])
+const timeRange = ref('today')
+const showStatsPanel = ref(true)
+const showEventsPanel = ref(true)
+const selectedTopic = ref('') // 选中的预警专题
+const topicList = ref([]) // 预警专题列表
 
 const stats = ref({
   person: 0,
-  event: 3,
-  location: 12,
+  event: 0,
+  location: 0,
   vehicle: 0
 })
 
-// 模拟预警数据
-const warningData = ref([
-  { type: 'event', level: 1, position: [118.1, 24.48], name: '预警事件1' },
-  { type: 'event', level: 1, position: [118.15, 24.5], name: '预警事件2' },
-  { type: 'event', level: 2, position: [118.2, 24.45], name: '预警事件3' },
-  { type: 'location', level: 1, position: [118.08, 24.46], name: '预警地点1' },
-  { type: 'location', level: 2, position: [118.12, 24.52], name: '预警地点2' },
-])
+// 预警数据
+const warningData = ref([])
+
+// 获取预警数据
+const getTodayAlerts = async (dayType = 'today') => {
+  try {
+    let url = '/api/v1/alertMap/today'
+
+    // 如果是全部数据，使用不同的接口
+    if (dayType === 'all') {
+      url = '/api/v1/alertMap/list'
+    } else {
+      url = `/api/v1/alertMap/today?dayType=${dayType}`
+    }
+
+    const res = await request({
+      url: url,
+      method: 'get'
+    })
+
+    if (res.code === 1) {
+      warningData.value = res.data || []
+
+      // 提取所有唯一的预警专题
+      const topics = [...new Set(warningData.value.map(item => item.alertName).filter(Boolean))]
+      topicList.value = topics
+
+      // 根据预警级别统计数量
+      const level1 = warningData.value.filter(item => item.alertLevel === 1).length
+      const level2 = warningData.value.filter(item => item.alertLevel === 2).length
+      const level3 = warningData.value.filter(item => item.alertLevel === 3).length
+
+      stats.value = {
+        person: level1,
+        event: level2,
+        location: level3,
+        vehicle: warningData.value.length
+      }
+
+      // 如果地图已初始化，添加标记
+      if (map.value) {
+        clearMarkers()
+        addMarkers(window.AMap)
+      }
+    } else {
+      ElMessage.error(res.msg || '获取预警数据失败')
+    }
+  } catch (error) {
+    console.error('获取预警数据失败:', error)
+    ElMessage.error('获取预警数据失败')
+  }
+}
+
+// 处理时间范围切换
+const handleTimeRangeChange = (value) => {
+  getTodayAlerts(value)
+}
+
+// 处理预警专题切换
+const handleTopicChange = () => {
+  // 筛选逻辑在 computed 中处理，这里只需要更新地图标记
+  if (map.value) {
+    clearMarkers()
+    addMarkers(window.AMap)
+  }
+}
+
+// 根据选中的专题过滤预警数据
+const filteredWarningData = computed(() => {
+  if (!selectedTopic.value) {
+    return warningData.value
+  }
+  return warningData.value.filter(item => item.alertName === selectedTopic.value)
+})
 
 const initMap = async () => {
   try {
@@ -128,7 +221,7 @@ const initMap = async () => {
 
     map.value = new AMap.Map('map-container', {
       zoom: 11,
-      center: [118.1, 24.48], // 厦门市中心
+      center: [116.397428, 39.90923], // 北京市中心
       viewMode: '3D',
       pitch: 0
     })
@@ -136,10 +229,14 @@ const initMap = async () => {
     // 绘制区域边界（蓝色虚线）
     drawBoundary(AMap)
 
-    // 添加标记点
-    addMarkers(AMap)
+    // 保存 AMap 到 window 以便后续使用
+    window.AMap = AMap
+
+    // 加载今日预警数据
+    await getTodayAlerts()
   } catch (e) {
     console.error('地图加载失败', e)
+    ElMessage.error('地图加载失败')
   }
 }
 
@@ -164,13 +261,21 @@ const drawBoundary = (AMap) => {
 }
 
 const addMarkers = (AMap) => {
-  warningData.value.forEach(item => {
-    const icon = getMarkerIcon(item.type, item.level)
+  const dataToShow = selectedTopic.value
+    ? warningData.value.filter(item => item.alertName === selectedTopic.value)
+    : warningData.value
+
+  dataToShow.forEach(item => {
+    // 使用返回的经纬度数据
+    const position = [parseFloat(item.longitude), parseFloat(item.latitude)]
+
+    // 根据预警级别显示不同颜色的标记
+    const icon = getMarkerIcon('event', item.alertLevel)
 
     const marker = new AMap.Marker({
-      position: item.position,
+      position: position,
       icon: icon,
-      title: item.name,
+      title: item.alertName,
       extData: item
     })
 
@@ -220,12 +325,37 @@ const getMarkerIcon = (type, level) => {
 }
 
 const showInfoWindow = (AMap, marker, data) => {
+  const levelText = ['', '一级预警', '二级预警', '三级预警'][data.alertLevel] || '未知级别'
+  const levelColor = ['', '#FF4444', '#FF8800', '#FFCC00'][data.alertLevel] || '#999'
+
   const infoWindow = new AMap.InfoWindow({
     content: `
-      <div style="padding: 10px;">
-        <h4>${data.name}</h4>
-        <p>类型: ${data.type}</p>
-        <p>级别: ${data.level}级</p>
+      <div style="padding: 12px; min-width: 300px; max-width: 400px;">
+        <h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px; border-bottom: 2px solid ${levelColor}; padding-bottom: 8px;">
+          ${data.alertName}
+        </h4>
+        <div style="margin-bottom: 8px;">
+          <span style="display: inline-block; padding: 2px 8px; background: ${levelColor}; color: white; border-radius: 3px; font-size: 12px;">
+            ${levelText}
+          </span>
+        </div>
+        <p style="margin: 8px 0; color: #666; font-size: 14px; line-height: 1.6;">
+          <strong>新闻标题:</strong> ${data.newsTitle}
+        </p>
+        <p style="margin: 8px 0; color: #666; font-size: 13px; line-height: 1.5;">
+          ${data.newsContent}
+        </p>
+        <p style="margin: 8px 0; color: #999; font-size: 12px;">
+          <strong>预警时间:</strong> ${data.alertDate ? new Date(data.alertDate).toLocaleString('zh-CN') : '未知'}
+        </p>
+        <p style="margin: 8px 0; color: #999; font-size: 12px;">
+          <strong>位置:</strong> ${data.longitude}, ${data.latitude}
+        </p>
+        ${data.newsUrl ? `
+          <a href="${data.newsUrl}" target="_blank" style="display: inline-block; margin-top: 8px; padding: 4px 12px; background: #409eff; color: white; text-decoration: none; border-radius: 3px; font-size: 12px;">
+            查看原文
+          </a>
+        ` : ''}
       </div>
     `,
     offset: new AMap.Pixel(0, -30)
@@ -235,7 +365,14 @@ const showInfoWindow = (AMap, marker, data) => {
 
 const filterType = (type) => {
   activeFilter.value = type
-  // 实现筛选逻辑
+  toggleFilter(type)
+}
+
+const clearMarkers = () => {
+  markers.value.forEach(marker => {
+    map.value.remove(marker)
+  })
+  markers.value = []
 }
 
 const toggleFilter = (type) => {
@@ -248,12 +385,99 @@ const toggleFilter = (type) => {
   // 根据筛选条件显示/隐藏标记
   markers.value.forEach(marker => {
     const data = marker.getExtData()
-    if (activeFilter.value === '' || data.type === activeFilter.value) {
+    if (activeFilter.value === '' || activeFilter.value === 'all') {
+      marker.show()
+    } else if (typeof activeFilter.value === 'number' && data.alertLevel === activeFilter.value) {
       marker.show()
     } else {
       marker.hide()
     }
   })
+}
+
+// 聚焦到指定预警事件
+const focusOnEvent = (item) => {
+  const position = [parseFloat(item.longitude), parseFloat(item.latitude)]
+
+  // 计算右侧面板占用的宽度（面板宽度 + 边距）
+  const rightPanelWidth = showEventsPanel.value ? 360 : 0
+  const leftPanelWidth = showStatsPanel.value ? 280 : 0
+
+  // 计算可视区域的实际中心偏移（像素）
+  const offsetX = (leftPanelWidth - rightPanelWidth) / 2
+
+  // 先设置合适的缩放级别（使用动画）
+  map.value.setZoom(15, true, 300)
+
+  // 延迟一点再移动中心点，让缩放动画先执行
+  setTimeout(() => {
+    // 移动到目标位置（使用平滑动画）
+    map.value.setCenter(position, true, 500)
+
+    // 等待地图移动完成后，再进行偏移调整
+    setTimeout(() => {
+      // 将地图向左或向右平移，使目标点位于可视区域中心
+
+      // 等待偏移完成后再显示信息窗口
+      setTimeout(() => {
+        const marker = markers.value.find(m => m.getExtData().id === item.id)
+        if (marker) {
+          const levelText = ['', '一级预警', '二级预警', '三级预警'][item.alertLevel] || '未知级别'
+          const levelColor = ['', '#FF4444', '#FF8800', '#FFCC00'][item.alertLevel] || '#999'
+
+          const infoWindow = new window.AMap.InfoWindow({
+            content: `
+              <div style="padding: 12px; min-width: 300px; max-width: 400px;">
+                <h4 style="margin: 0 0 10px 0; color: #333; font-size: 16px; border-bottom: 2px solid ${levelColor}; padding-bottom: 8px;">
+                  ${item.alertName}
+                </h4>
+                <div style="margin-bottom: 8px;">
+                  <span style="display: inline-block; padding: 2px 8px; background: ${levelColor}; color: white; border-radius: 3px; font-size: 12px;">
+                    ${levelText}
+                  </span>
+                </div>
+                <p style="margin: 8px 0; color: #666; font-size: 14px; line-height: 1.6;">
+                  <strong>新闻标题:</strong> ${item.newsTitle}
+                </p>
+                <p style="margin: 8px 0; color: #666; font-size: 13px; line-height: 1.5;">
+                  ${item.newsContent}
+                </p>
+                <p style="margin: 8px 0; color: #999; font-size: 12px;">
+                  <strong>预警时间:</strong> ${item.alertDate ? new Date(item.alertDate).toLocaleString('zh-CN') : '未知'}
+                </p>
+                <p style="margin: 8px 0; color: #999; font-size: 12px;">
+                  <strong>位置:</strong> ${item.longitude}, ${item.latitude}
+                </p>
+                ${item.newsUrl ? `
+                  <a href="${item.newsUrl}" target="_blank" style="display: inline-block; margin-top: 8px; padding: 4px 12px; background: #409eff; color: white; text-decoration: none; border-radius: 3px; font-size: 12px;">
+                    查看原文
+                  </a>
+                ` : ''}
+              </div>
+            `,
+            offset: new window.AMap.Pixel(0, -30)
+          })
+          infoWindow.open(map.value, position)
+        }
+      }, 350)
+    }, 550)
+  }, 350)
+}
+
+// 格式化时间
+const formatTime = (dateStr) => {
+  if (!dateStr) return '未知时间'
+  try {
+    return new Date(dateStr).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (e) {
+    return dateStr
+  }
 }
 
 onMounted(() => {
@@ -269,7 +493,7 @@ onUnmounted(() => {
 .warning-map-container {
   position: relative;
   width: 100%;
-  height: 100vh;
+  height: calc(100vh - 60px);
   background: #0a1929;
 }
 
@@ -277,21 +501,21 @@ onUnmounted(() => {
   position: absolute;
   left: 20px;
   top: 20px;
-  width: 280px;
+  width: 240px;
   z-index: 1000;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
 }
 
 .stat-item {
   background: #ffffff;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
-  padding: 15px;
+  padding: 12px;
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
   cursor: pointer;
   transition: all 0.3s;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -303,13 +527,13 @@ onUnmounted(() => {
 }
 
 .stat-icon {
-  width: 50px;
-  height: 50px;
+  width: 45px;
+  height: 45px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 22px;
   color: white;
 }
 
@@ -334,13 +558,13 @@ onUnmounted(() => {
 }
 
 .stat-label {
-  font-size: 14px;
+  font-size: 13px;
   color: #666666;
-  margin-bottom: 5px;
+  margin-bottom: 4px;
 }
 
 .stat-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: bold;
   color: #333333;
 }
@@ -350,51 +574,211 @@ onUnmounted(() => {
   height: 100%;
 }
 
-.map-controls {
+.events-panel {
   position: absolute;
   right: 20px;
   top: 20px;
+  bottom: 20px;
+  width: 320px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   z-index: 1000;
+}
+
+.events-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+}
+
+.events-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+
+.events-count {
+  font-size: 13px;
+  color: #999;
+}
+
+.time-filter {
+  padding: 10px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+
+.time-filter :deep(.el-radio-group) {
+  width: 100%;
+}
+
+.time-filter :deep(.el-radio-button) {
+  flex: 1;
+}
+
+.time-filter :deep(.el-radio-button__inner) {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.topic-filter {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fafafa;
+}
+
+.events-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.event-item {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
   display: flex;
   gap: 10px;
 }
 
-.map-legend {
-  position: absolute;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  background: rgba(10, 25, 41, 0.9);
-  border: 1px solid rgba(74, 144, 226, 0.3);
-  border-radius: 8px;
-  padding: 15px 30px;
-  display: flex;
-  gap: 25px;
-  flex-wrap: wrap;
+.event-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2);
+  transform: translateX(-2px);
 }
 
-.legend-item {
+.event-level {
+  flex-shrink: 0;
+  width: 45px;
+  height: 45px;
+  border-radius: 4px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  color: #fff;
-  font-size: 14px;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+  font-weight: bold;
 }
 
-.legend-icon {
-  font-size: 16px;
+.event-level.level-1 {
+  background: #FF4444;
 }
 
-.legend-icon.level-1 {
-  color: #FF4444;
+.event-level.level-2 {
+  background: #FF8800;
 }
 
-.legend-icon.level-2 {
-  color: #FF8800;
+.event-level.level-3 {
+  background: #FFCC00;
 }
 
-.legend-icon.level-3 {
-  color: #FFCC00;
+.event-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.event-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-news {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.event-time {
+  font-size: 10px;
+  color: #999;
+}
+
+/* 收起/展开按钮 */
+.toggle-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #e8e8e8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1001;
+  transition: all 0.3s;
+  font-size: 18px;
+  color: #666;
+}
+
+.toggle-btn:hover {
+  background: #fff;
+  color: #409eff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.left-toggle {
+  left: 280px;
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+}
+
+.left-toggle.collapsed {
+  left: 20px;
+}
+
+.right-toggle {
+  right: 360px;
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+}
+
+.right-toggle.collapsed {
+  right: 20px;
+}
+
+/* 过渡动画 */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-left-enter-from,
+.slide-left-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-right-enter-from,
+.slide-right-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
 }
 </style>

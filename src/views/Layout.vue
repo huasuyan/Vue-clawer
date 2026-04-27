@@ -80,8 +80,6 @@
           </div>
           <transition name="slide">
             <div v-show="showAnalysis" class="submenu">
-              <router-link to="/analysis/hotspot">热点分析</router-link>
-              <router-link to="/analysis/competitor">竞品分析</router-link>
               <router-link to="/analysis/report">舆情报告</router-link>
               <router-link to="/analysis/report-setting">舆情报告设置</router-link>
             </div>
@@ -120,7 +118,6 @@
             <div v-show="showSystem" class="submenu">
               <router-link to="/system/role">角色管理</router-link>
               <router-link to="/system/organization">组织架构</router-link>
-              <router-link to="/system/log">操作日志</router-link>
             </div>
           </transition>
         </div>

@@ -60,10 +60,6 @@ const routes = [
         component: () => import('@/views/system/Role.vue')
       },
       {
-        path: 'system/log',
-        component: () => import('@/views/system/Log.vue')
-      },
-      {
         path: 'document/warning-map',
         component: () => import('@/views/document/WarningMap.vue')
       },
@@ -74,14 +70,6 @@ const routes = [
       {
         path: 'document/query',
         component: () => import('@/views/document/DocumentQuery.vue')
-      },
-      {
-        path: 'analysis/hotspot',
-        component: () => import('@/views/analysis/HotspotAnalysis.vue')
-      },
-      {
-        path: 'analysis/competitor',
-        component: () => import('@/views/analysis/CompetitorAnalysis.vue')
       },
       {
         path: 'analysis/report',
